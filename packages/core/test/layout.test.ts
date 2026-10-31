@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildPrintable, drawingToSvg } from '../src/drawing';
 import { contentRect, layoutSheet, paperFormat } from '../src/layout';
+import { MARKER_DICTIONARY, markerMatrix } from '../src/markers';
+import { AR } from '../src/vendor/js-aruco2/aruco.js';
 import { cellAddress, classifyCells, normalizeSheet, parseCellAddress, parseRangeAddress, rangeAddress } from '../src/sheet';
 import { sampleTemplate } from './sim/scenario';
 
@@ -46,6 +48,20 @@ describe('addresses', () => {
     for (const bad of ['', 'C3:', 'C3:F', 'A1:B2:C3', '0:3']) expect(parseRangeAddress(bad, within)).toBeNull();
     expect(rangeAddress({ top: 2, left: 2, bottom: 19, right: 5 })).toBe('C3:F20');
     expect(rangeAddress({ top: 6, left: 3, bottom: 6, right: 3 })).toBe('D7');
+  });
+});
+
+describe('markerMatrix', () => {
+  it('prints the codes of the detector dictionary', () => {
+    const dictionary = new AR.Dictionary(MARKER_DICTIONARY);
+    for (let id = 0; id < 16; id++) {
+      const bits = markerMatrix(id)
+        .slice(1, -1)
+        .flatMap((row) => row.slice(1, -1).map((black) => (black ? '0' : '1')))
+        .join('');
+      expect(bits).toBe(dictionary.codeList[id]);
+    }
+    expect(() => markerMatrix(16)).toThrow(RangeError);
   });
 });
 

@@ -4,6 +4,7 @@
   "private": true,
   "description": "Framework-agnostic optical mark recognition for printed spreadsheet grids: layout, printable page drawing, self-describing page codes and photo scanning.",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts"
   },

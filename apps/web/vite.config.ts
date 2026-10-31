@@ -32,6 +32,22 @@ export default defineConfig({
     }),
   ],
   worker: { format: 'es' },
+  build: {
+    // The only chunk above Vite's 500 kB default is ExcelJS, which is loaded on demand.
+    chunkSizeWarningLimit: 1000,
+    rolldownOptions: {
+      output: {
+        // Libraries in chunks of their own keep their file names between releases, so an update of the app only
+        // downloads the app's own code. ExcelJS stays out: it is loaded only when an .xlsx file is opened.
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/, priority: 2 },
+            { name: 'vendor', test: /node_modules[\\/](?!.*exceljs)/, priority: 1 },
+          ],
+        },
+      },
+    },
+  },
   server: { host: true },
   preview: { host: true },
 });
