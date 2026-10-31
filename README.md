@@ -54,9 +54,11 @@ pnpm bench:backgrounds [photos]   # do cell background colours affect reading?
 
 On the local network (`http://<computer-ip>:5173`), phones can take photos with the camera app and scan them. Installing the app (PWA) and working offline need HTTPS, as does `localhost` on the phone itself, so for that, deploy the build to any static host.
 
-### Deploying under a sub-path
+### Deploying
 
-Set `BASE_PATH` when building, for example `BASE_PATH=/papercell/ pnpm build` for a GitHub Pages project site.
+Pushes to `main` are typechecked, tested and deployed to GitHub Pages by `.github/workflows/pages.yml` (repository settings → Pages → Source: GitHub Actions).
+
+To host the build elsewhere under a sub-path, set `BASE_PATH` when building, for example `BASE_PATH=/papercell/ pnpm build`.
 
 ## Third-party code
 
