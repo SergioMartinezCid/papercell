@@ -1,0 +1,14 @@
+{
+  "name": "papercell",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "dev": "pnpm --filter @papercell/web dev",
+    "build": "pnpm --filter @papercell/web build",
+    "preview": "pnpm --filter @papercell/web preview",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "bench:backgrounds": "pnpm --filter @papercell/core bench:backgrounds"
+  }
+}

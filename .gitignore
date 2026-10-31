@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dev-dist/
+coverage/
+*.log
+.DS_Store
+.vite/
+# Output of the synthetic benchmarks (regenerate with pnpm bench:backgrounds)
+packages/core/bench/out/

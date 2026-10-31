@@ -1,0 +1,37 @@
+import type { PageScan, ScanError } from '@papercell/core';
+
+/** A page scan without the straightened image (sent separately as a JPEG). */
+export type ScanSummary = Omit<PageScan, 'page'>;
+
+export type ScanFailure = ScanError | 'unreadable-image';
+
+export interface WorkerRequest {
+  id: string;
+  file: Blob;
+}
+
+export type WorkerResponse = { id: string; ok: true; scan: ScanSummary; preview: Blob } | { id: string; ok: false; error: ScanFailure };
+
+export interface ScanItem {
+  id: string;
+  name: string;
+  status: 'processing' | 'done' | 'error';
+  error?: ScanFailure;
+  scan?: ScanSummary;
+  previewUrl?: string;
+  /** Decisions made while reviewing, keyed by `row,col`: true = marked. */
+  decisions: Record<string, boolean>;
+}
+
+export function boxKey(row: number, col: number): string {
+  return `${row},${col}`;
+}
+
+/** Final state of a box: the reviewer's decision, otherwise what was read. */
+export function isMarked(item: ScanItem, box: { row: number; col: number; marked: boolean }): boolean {
+  return item.decisions[boxKey(box.row, box.col)] ?? box.marked;
+}
+
+export function needsCheck(item: ScanItem, box: { row: number; col: number; uncertain: boolean }): boolean {
+  return box.uncertain && item.decisions[boxKey(box.row, box.col)] === undefined;
+}
