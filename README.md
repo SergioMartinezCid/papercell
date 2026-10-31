@@ -69,6 +69,10 @@ Pushes to `main` are typechecked, tested and deployed to GitHub Pages by `.githu
 
 To host the build elsewhere under a sub-path, set `BASE_PATH` when building, for example `BASE_PATH=/papercell/ pnpm build`.
 
+## License
+
+[MIT](LICENSE).
+
 ## Third-party code
 
 `packages/core/src/vendor/js-aruco2` is [js-aruco2](https://github.com/damianofalcioni/js-aruco2) 2.0.0 (MIT), converted to an ES module; see its `LICENSE.txt`.

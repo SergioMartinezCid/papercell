@@ -2,6 +2,7 @@
   "name": "@papercell/core",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Framework-agnostic optical mark recognition for printed spreadsheet grids: layout, printable page drawing, self-describing page codes and photo scanning.",
   "type": "module",
   "sideEffects": false,
