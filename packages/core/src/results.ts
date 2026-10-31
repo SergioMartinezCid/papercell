@@ -1,5 +1,7 @@
 /** Turning read marks back into spreadsheet cells. */
 
+import { intersectRanges, type CellRange } from './sheet';
+
 export interface MarkValue {
   row: number;
   col: number;
@@ -28,29 +30,40 @@ export interface OutputInput {
 
 export interface Output {
   values: string[][];
+  /** The cells in `values`, relative to the source range. */
+  block: CellRange;
   /** Zero-based spreadsheet position of `values[0][0]`. */
   topLeft: { row: number; col: number };
   /** Cells in the output that are not boxes and whose text is unknown (they come out empty). */
   unknownCells: number;
 }
 
-export function buildOutput(input: OutputInput, options: OutputOptions): Output {
-  const byCell = new Map(input.marks.map((m) => [`${m.row},${m.col}`, m.marked]));
-  let r0 = 0;
-  let c0 = 0;
-  let r1 = input.sourceRows - 1;
-  let c1 = input.sourceCols - 1;
-  if (options.shape === 'boxes' && input.marks.length > 0) {
-    r0 = Math.min(...input.marks.map((m) => m.row));
-    r1 = Math.max(...input.marks.map((m) => m.row));
-    c0 = Math.min(...input.marks.map((m) => m.col));
-    c1 = Math.max(...input.marks.map((m) => m.col));
+/** The block that `shape` outputs, relative to the source range. */
+export function outputBlock(input: OutputInput, shape: OutputOptions['shape']): CellRange {
+  if (shape === 'boxes' && input.marks.length > 0) {
+    return {
+      top: Math.min(...input.marks.map((m) => m.row)),
+      left: Math.min(...input.marks.map((m) => m.col)),
+      bottom: Math.max(...input.marks.map((m) => m.row)),
+      right: Math.max(...input.marks.map((m) => m.col)),
+    };
   }
+  return { top: 0, left: 0, bottom: input.sourceRows - 1, right: input.sourceCols - 1 };
+}
+
+/**
+ * The output block as spreadsheet values. `selection` (relative to the source range, clipped to it) replaces
+ * the block chosen by `options.shape`, to output only part of the range.
+ */
+export function buildOutput(input: OutputInput, options: OutputOptions, selection?: CellRange): Output {
+  const byCell = new Map(input.marks.map((m) => [`${m.row},${m.col}`, m.marked]));
+  const whole = outputBlock(input, 'range');
+  const block = (selection && intersectRanges(selection, whole)) ?? outputBlock(input, options.shape);
   let unknownCells = 0;
   const values: string[][] = [];
-  for (let r = r0; r <= r1; r++) {
+  for (let r = block.top; r <= block.bottom; r++) {
     const row: string[] = [];
-    for (let c = c0; c <= c1; c++) {
+    for (let c = block.left; c <= block.right; c++) {
       const marked = byCell.get(`${r},${c}`);
       if (marked !== undefined) row.push(marked ? options.markedValue : options.emptyValue);
       else if (input.texts) row.push(input.texts[r]?.[c] ?? '');
@@ -61,7 +74,7 @@ export function buildOutput(input: OutputInput, options: OutputOptions): Output 
     }
     values.push(row);
   }
-  return { values, topLeft: { row: input.anchor.row + r0, col: input.anchor.col + c0 }, unknownCells };
+  return { values, block, topLeft: { row: input.anchor.row + block.top, col: input.anchor.col + block.left }, unknownCells };
 }
 
 /** Tab-separated text, the format spreadsheets accept when pasting. */

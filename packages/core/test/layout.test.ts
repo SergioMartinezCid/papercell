@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildPrintable, drawingToSvg } from '../src/drawing';
 import { contentRect, layoutSheet, paperFormat } from '../src/layout';
-import { cellAddress, classifyCells, normalizeSheet, parseCellAddress } from '../src/sheet';
+import { cellAddress, classifyCells, normalizeSheet, parseCellAddress, parseRangeAddress, rangeAddress } from '../src/sheet';
 import { sampleTemplate } from './sim/scenario';
 
 const text = (rows: string[][]) => normalizeSheet({ cells: rows.map((r) => r.map((t) => ({ text: t }))) });
@@ -34,6 +34,18 @@ describe('addresses', () => {
     expect(parseCellAddress('ab10')).toEqual({ row: 9, col: 27 });
     expect(parseCellAddress("'List'!$C$2")).toEqual({ row: 1, col: 2 });
     expect(parseCellAddress('nope')).toBeNull();
+  });
+
+  it('parses and formats ranges', () => {
+    const within = { top: 2, left: 1, bottom: 19, right: 6 };
+    expect(parseRangeAddress('C3:F20', within)).toEqual({ top: 2, left: 2, bottom: 19, right: 5 });
+    expect(parseRangeAddress("'List'!$F$20:c3", within)).toEqual({ top: 2, left: 2, bottom: 19, right: 5 });
+    expect(parseRangeAddress('d7', within)).toEqual({ top: 6, left: 3, bottom: 6, right: 3 });
+    expect(parseRangeAddress('D:E', within)).toEqual({ top: 2, left: 3, bottom: 19, right: 4 });
+    expect(parseRangeAddress('5:4', within)).toEqual({ top: 3, left: 1, bottom: 4, right: 6 });
+    for (const bad of ['', 'C3:', 'C3:F', 'A1:B2:C3', '0:3']) expect(parseRangeAddress(bad, within)).toBeNull();
+    expect(rangeAddress({ top: 2, left: 2, bottom: 19, right: 5 })).toBe('C3:F20');
+    expect(rangeAddress({ top: 6, left: 3, bottom: 6, right: 3 })).toBe('D7');
   });
 });
 

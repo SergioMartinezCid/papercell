@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { chooseThreshold, classify } from '../src/scan/classify';
-import { buildOutput, toCsv, toTsv } from '../src/results';
+import { buildOutput, outputBlock, toCsv, toTsv } from '../src/results';
 
 describe('chooseThreshold', () => {
   it('splits marked from empty boxes and flags values in between', () => {
@@ -51,6 +51,29 @@ describe('buildOutput', () => {
       ['y', 'FALSE', 'TRUE'],
     ]);
     expect(buildOutput(base, { shape: 'range', markedValue: '1', emptyValue: '' }).unknownCells).toBe(5);
+  });
+
+  it('outputs only the selected part, clipped to the range', () => {
+    const options = { shape: 'boxes', markedValue: '1', emptyValue: '0' } as const;
+    const column = buildOutput(base, options, { top: 0, left: 2, bottom: 2, right: 2 });
+    expect(column.values).toEqual([[''], ['0'], ['1']]);
+    expect(column.topLeft).toEqual({ row: 4, col: 3 });
+    expect(column.unknownCells).toBe(1);
+    const clipped = buildOutput(base, options, { top: 2, left: 1, bottom: 9, right: 9 });
+    expect(clipped.values).toEqual([['0', '1']]);
+    expect(clipped.topLeft).toEqual({ row: 6, col: 2 });
+    expect(clipped.block).toEqual({ top: 2, left: 1, bottom: 2, right: 2 });
+    // A selection entirely outside the range falls back to the shape.
+    expect(buildOutput(base, options, { top: 5, left: 5, bottom: 6, right: 6 }).values).toEqual([
+      ['1', '0'],
+      ['0', '1'],
+    ]);
+  });
+
+  it('gives the block of each shape', () => {
+    expect(outputBlock(base, 'boxes')).toEqual({ top: 1, left: 1, bottom: 2, right: 2 });
+    expect(outputBlock(base, 'range')).toEqual({ top: 0, left: 0, bottom: 2, right: 2 });
+    expect(outputBlock({ ...base, marks: [] }, 'boxes')).toEqual({ top: 0, left: 0, bottom: 2, right: 2 });
   });
 
   it('escapes TSV and CSV', () => {

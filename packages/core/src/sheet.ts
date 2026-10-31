@@ -145,3 +145,51 @@ export function parseCellAddress(address: string): { row: number; col: number } 
   if (row < 1) return null;
   return { row: row - 1, col: col - 1 };
 }
+
+/** A block of cells, zero-based and inclusive. */
+export interface CellRange {
+  top: number;
+  left: number;
+  bottom: number;
+  right: number;
+}
+
+export function rangeAddress(range: CellRange): string {
+  const start = cellAddress(range.top, range.left);
+  const end = cellAddress(range.bottom, range.right);
+  return start === end ? start : `${start}:${end}`;
+}
+
+/**
+ * Parses an A1-style range such as `C3:F20` or a single cell. Whole columns (`C:F`) and whole rows (`3:20`)
+ * span `within`. A `$` and a sheet prefix are ignored, and the corners may be given in any order.
+ */
+export function parseRangeAddress(address: string, within: CellRange): CellRange | null {
+  const parts = address.replace(/^.*!/, '').replace(/\$/g, '').trim().split(':');
+  if (parts.length > 2) return null;
+  const [a, b = a] = parts.map((p) => p.trim());
+  const cellA = parseCellAddress(a);
+  const cellB = parseCellAddress(b);
+  if (cellA && cellB) return spanning(cellA, cellB);
+  if (/^[A-Za-z]{1,3}$/.test(a) && /^[A-Za-z]{1,3}$/.test(b)) {
+    const colA = parseCellAddress(`${a}1`)!.col;
+    const colB = parseCellAddress(`${b}1`)!.col;
+    return { top: within.top, bottom: within.bottom, left: Math.min(colA, colB), right: Math.max(colA, colB) };
+  }
+  if (/^\d{1,7}$/.test(a) && /^\d{1,7}$/.test(b) && Number(a) > 0 && Number(b) > 0) {
+    const [rowA, rowB] = [Number(a) - 1, Number(b) - 1];
+    return { top: Math.min(rowA, rowB), bottom: Math.max(rowA, rowB), left: within.left, right: within.right };
+  }
+  return null;
+}
+
+/** The smallest range containing both cells. */
+export function spanning(a: { row: number; col: number }, b: { row: number; col: number }): CellRange {
+  return { top: Math.min(a.row, b.row), left: Math.min(a.col, b.col), bottom: Math.max(a.row, b.row), right: Math.max(a.col, b.col) };
+}
+
+/** The overlap of two ranges, or null when they do not touch. */
+export function intersectRanges(a: CellRange, b: CellRange): CellRange | null {
+  const range = { top: Math.max(a.top, b.top), left: Math.max(a.left, b.left), bottom: Math.min(a.bottom, b.bottom), right: Math.min(a.right, b.right) };
+  return range.top <= range.bottom && range.left <= range.right ? range : null;
+}
