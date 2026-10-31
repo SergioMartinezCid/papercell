@@ -70,6 +70,9 @@ export const en = {
   'scan.page': 'Page {n}',
   'scan.review': 'Review',
   'scan.remove': 'Remove',
+  'scan.kept': 'Scanned pages and your reviews stay on this device until you remove them.',
+  'scan.removeAll': 'Remove all',
+  'scan.removeAllConfirm': 'Remove every scanned page and its review from this device?',
 
   'review.title': 'Page {n} of {total}',
   'review.legend.marked': 'Marked',

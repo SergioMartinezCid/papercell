@@ -72,6 +72,9 @@ export const es: Messages = {
   'scan.page': 'Página {n}',
   'scan.review': 'Revisar',
   'scan.remove': 'Quitar',
+  'scan.kept': 'Las páginas escaneadas y tus revisiones se quedan en este dispositivo hasta que las quites.',
+  'scan.removeAll': 'Quitar todas',
+  'scan.removeAllConfirm': '¿Quitar de este dispositivo todas las páginas escaneadas y sus revisiones?',
 
   'review.title': 'Página {n} de {total}',
   'review.legend.marked': 'Marcada',

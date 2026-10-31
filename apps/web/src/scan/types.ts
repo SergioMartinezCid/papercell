@@ -15,9 +15,12 @@ export type WorkerResponse = { id: string; ok: true; scan: ScanSummary; preview:
 export interface ScanItem {
   id: string;
   name: string;
+  addedAt: number;
   status: 'processing' | 'done' | 'error';
   error?: ScanFailure;
   scan?: ScanSummary;
+  /** The straightened page (JPEG), and an object URL for it. */
+  preview?: Blob;
   previewUrl?: string;
   /** Decisions made while reviewing, keyed by `row,col`: true = marked. */
   decisions: Record<string, boolean>;
