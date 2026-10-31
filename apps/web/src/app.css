@@ -27,9 +27,43 @@
 }
 
 .paste-target {
-  border-style: dashed;
-  cursor: pointer;
+  position: relative;
+}
+
+.paste-target textarea {
+  display: block;
+  width: 100%;
+  min-height: 88px;
+  resize: none;
+  border: 2px dashed var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-body);
+  color: transparent;
   caret-color: transparent;
+  cursor: pointer;
+}
+
+.paste-target textarea:hover {
+  background: var(--mantine-color-default-hover);
+}
+
+.paste-target textarea:focus {
+  outline: none;
+  border-color: var(--mantine-primary-color-filled);
+  background: var(--mantine-primary-color-light);
+}
+
+.paste-target-label {
+  position: absolute;
+  inset: 0;
+  justify-content: center;
+  padding: var(--mantine-spacing-xs);
+  color: var(--mantine-color-dimmed);
+  pointer-events: none;
+}
+
+.paste-target textarea:focus + .paste-target-label {
+  color: var(--mantine-primary-color-filled);
 }
 
 .drop-zone {

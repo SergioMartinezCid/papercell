@@ -1,4 +1,4 @@
-import { Button, Card, FileButton, Select, Stack, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { Box, Button, Card, FileButton, Select, Stack, Text, TextInput, Title } from '@mantine/core';
 import { IconClipboard, IconUpload } from '@tabler/icons-react';
 import type { Sheet } from '@papercell/core';
 import { useI18n } from '../i18n';
@@ -17,26 +17,31 @@ interface Props {
 
 export function ImportCard(p: Props) {
   const { t } = useI18n();
+  const label = p.touch ? t('prepare.import.pasteTargetTouch') : t('prepare.import.pasteTarget');
   return (
     <Card withBorder radius="md" padding="md">
       <Stack gap="sm">
         <Title order={2} size="h4">
           {t('prepare.import.title')}
         </Title>
-        <Textarea
-          aria-label={t('prepare.import.pasteTarget')}
-          placeholder={p.touch ? t('prepare.import.pasteTargetTouch') : t('prepare.import.pasteTarget')}
-          value=""
-          onChange={() => undefined}
-          onPaste={(e) => {
-            e.preventDefault();
-            p.onPaste(e.clipboardData);
-          }}
-          leftSection={<IconClipboard size={18} />}
-          autosize
-          minRows={2}
-          classNames={{ input: 'paste-target' }}
-        />
+        {/* A real (empty) text field, so that touch screens offer Paste on long press; the label is drawn over it. */}
+        <Box className="paste-target">
+          <textarea
+            aria-label={label}
+            value=""
+            onChange={() => undefined}
+            onPaste={(e) => {
+              e.preventDefault();
+              p.onPaste(e.clipboardData);
+            }}
+          />
+          <Stack className="paste-target-label" align="center" gap={4} aria-hidden>
+            <IconClipboard size={28} stroke={1.5} />
+            <Text size="sm" ta="center">
+              {label}
+            </Text>
+          </Stack>
+        </Box>
         <FileButton onChange={(f) => f && p.onFile(f)} accept=".xlsx,.csv,.tsv,.txt,text/csv,text/tab-separated-values">
           {(props) => (
             <Button {...props} variant="default" leftSection={<IconUpload size={16} />}>
