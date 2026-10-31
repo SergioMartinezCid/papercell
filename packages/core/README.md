@@ -38,10 +38,11 @@ if (outcome.ok) {
 | --- | --- |
 | `sheet.ts` | Sheet model, cell kinds (`text`, `mark`, `blank`, `covered`), A1 addresses |
 | `import/` | CSV/TSV and HTML-table (clipboard) importers |
-| `layout.ts` | Paper formats, page frame (markers, QR), pagination, box geometry |
-| `payload.ts` | Page code: compact binary layout description, Base45 for the QR alphanumeric mode |
+| `spec.ts` | Print format: what the scanner assumes beyond the page code (paper formats, corner markers, QR position, box geometry per version). Never changes for printed versions |
+| `layout.ts` | Pagination, scaling and cell geometry |
+| `payload.ts` | Page code: compact binary layout description, Base45 for the QR alphanumeric mode; reads every printed version |
 | `markers.ts`, `drawing.ts` | Marker and QR matrices; page drawing as shapes, and as SVG |
 | `scan/` | Marker detection, homography, page straightening, lighting correction, box snapping, thresholding |
 | `results.ts` | Read marks → spreadsheet block (TSV / CSV) |
 
-Testing: `pnpm test`. The `test/sim` folder simulates printing, hand marks and phone photos, and is reused by `bench/`.
+Testing: `pnpm test`. The `test/sim` folder simulates printing, hand marks and phone photos, and is reused by `bench/`. `test/compat.test.ts` scans pages recorded from earlier printers (`test/fixtures/`) to make sure they still read.

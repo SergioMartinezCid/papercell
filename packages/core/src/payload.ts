@@ -3,8 +3,7 @@
  * Base45-encoded so the QR code can use its compact alphanumeric mode.
  */
 import type { PageGrid, PageLayout, Template } from './layout';
-
-export const PAYLOAD_VERSION = 1;
+import { PRINT_VERSION } from './spec';
 
 export interface PayloadBox {
   pageRow: number;
@@ -36,7 +35,7 @@ export interface PagePayload {
 
 export function pagePayload(template: Template, page: PageLayout, templateId: number): PagePayload {
   return {
-    version: PAYLOAD_VERSION,
+    version: PRINT_VERSION,
     templateId,
     pageIndex: page.index,
     pageCount: page.count,
@@ -89,10 +88,20 @@ export function encodePayload(p: PagePayload): string {
   return base45Encode(w.bytes());
 }
 
+/**
+ * Reads a page code of any version printed so far (see `spec.ts`). When the byte layout changes, the new
+ * version gets a decoder of its own next to `decodeV1`, which stays as it is.
+ */
 export function decodePayload(text: string): PagePayload {
   const r = new ByteReader(base45Decode(text));
   const version = r.u8();
-  if (version !== PAYLOAD_VERSION) throw new PayloadError(`Unsupported page code version ${version}`);
+  if (version === 1) return decodeV1(r);
+  if (version > PRINT_VERSION) throw new PayloadError(`Page code version ${version} is newer than this reader`, 'newer');
+  throw new PayloadError(`Unknown page code version ${version}`);
+}
+
+function decodeV1(r: ByteReader): PagePayload {
+  const version = 1;
   const templateId = r.u32();
   const [pageIndex, pageCount, formatCode, anchorRow, anchorCol, sourceRows, sourceCols] = Array.from({ length: 7 }, () => r.varint());
   const originX = r.varint();
@@ -147,7 +156,15 @@ export function decodePayload(text: string): PagePayload {
   };
 }
 
-export class PayloadError extends Error {}
+export class PayloadError extends Error {
+  /** `newer`: printed with a newer version of the format than this reader knows. */
+  readonly reason: 'invalid' | 'newer';
+
+  constructor(message: string, reason: 'invalid' | 'newer' = 'invalid') {
+    super(message);
+    this.reason = reason;
+  }
+}
 
 /** Run-length groups of equal consecutive values. */
 function runs(values: string[]): Array<[number, string]> {

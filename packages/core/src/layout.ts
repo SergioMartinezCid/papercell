@@ -3,6 +3,7 @@
  * grid edge is quantised to 0.1 mm so the page code (QR) reproduces it exactly when scanning.
  */
 import { classifyCells, type CellKind, type CellStyle, type KindOverrides, type Sheet } from './sheet';
+import { boxInCell, FRAME, paperFormat } from './spec';
 
 export type PaperSize = 'a4' | 'letter';
 export type Orientation = 'portrait' | 'landscape';
@@ -57,64 +58,7 @@ export interface PaperFormat {
   height: number;
 }
 
-const PAPER_MM: Record<PaperSize, [number, number]> = { a4: [210, 297], letter: [215.9, 279.4] };
-
-export function paperFormat(paper: PaperSize, orientation: Orientation): PaperFormat {
-  const [w, h] = PAPER_MM[paper];
-  const landscape = orientation === 'landscape';
-  return {
-    code: (paper === 'a4' ? 0 : 2) + (landscape ? 1 : 0),
-    paper,
-    orientation,
-    width: landscape ? h : w,
-    height: landscape ? w : h,
-  };
-}
-
-export function paperFormatFromCode(code: number): PaperFormat | null {
-  if (code < 0 || code > 3) return null;
-  return paperFormat(code < 2 ? 'a4' : 'letter', code % 2 === 1 ? 'landscape' : 'portrait');
-}
-
-/** Fixed frame around the content: corner markers, QR code and title. */
-export const FRAME = {
-  /** Paper edge to the outer edge of the markers. */
-  margin: 8,
-  /** Side of each corner marker. */
-  marker: 14,
-  /** Space between frame elements and the grid. */
-  gap: 4,
-  /** Side of one QR module. */
-  qrModule: 1,
-  /** Largest QR side the scanner looks for. */
-  qrMax: 54,
-} as const;
-
-/** Corner order used for marker ids: id = format code * 4 + corner. */
-export const CORNERS = ['tl', 'tr', 'br', 'bl'] as const;
-
-export function markerRect(format: PaperFormat, corner: number): Rect {
-  const { margin, marker } = FRAME;
-  const right = format.width - margin - marker;
-  const bottom = format.height - margin - marker;
-  const x = corner === 1 || corner === 2 ? right : margin;
-  const y = corner === 2 || corner === 3 ? bottom : margin;
-  return { x, y, w: marker, h: marker };
-}
-
-/** The QR code is right-aligned next to the top-right marker. */
-export function qrRect(format: PaperFormat, side: number): Rect {
-  const right = format.width - FRAME.margin - FRAME.marker - FRAME.gap;
-  return { x: right - side, y: FRAME.margin, w: side, h: side };
-}
-
-/** Where the scanner searches for the QR code (it does not know the code's size beforehand). */
-export function qrSearchRect(format: PaperFormat): Rect {
-  const right = format.width - FRAME.margin - FRAME.marker - FRAME.gap;
-  const pad = 3;
-  return { x: right - FRAME.qrMax - pad, y: FRAME.margin - pad, w: FRAME.qrMax + 2 * pad, h: FRAME.qrMax + 2 * pad };
-}
-
+/** Space left for the grid between the page frame and its markers (see `spec.ts`). */
 export function contentRect(format: PaperFormat, qrSide: number): Rect {
   const top = FRAME.margin + Math.max(FRAME.marker, qrSide) + FRAME.gap;
   const bottom = format.height - FRAME.margin - FRAME.marker - FRAME.gap;
@@ -123,15 +67,6 @@ export function contentRect(format: PaperFormat, qrSide: number): Rect {
 
 /** Largest scale in mm per sheet pixel: a 21 px row becomes 8.8 mm. */
 export const MAX_SCALE = 0.42;
-
-const BOX_FRACTION = 0.68;
-const BOX_MAX = 7;
-
-/** The printed box is a square centred in its cell. Shared by printing and scanning. */
-export function boxInCell(cell: Rect): Rect {
-  const side = Math.min(Math.min(cell.w, cell.h) * BOX_FRACTION, BOX_MAX);
-  return { x: cell.x + (cell.w - side) / 2, y: cell.y + (cell.h - side) / 2, w: side, h: side };
-}
 
 /** Grid geometry of one page, in tenths of a millimetre. */
 export interface PageGrid {

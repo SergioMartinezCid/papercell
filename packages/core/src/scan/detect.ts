@@ -1,8 +1,8 @@
 /** Finding the corner markers and reading the page code. */
 import { AR } from '../vendor/js-aruco2/aruco.js';
 import jsQR from 'jsqr';
-import { FRAME, markerRect, paperFormatFromCode, qrSearchRect, type PaperFormat } from '../layout';
-import { MARKER_DICTIONARY } from '../markers';
+import type { PaperFormat } from '../layout';
+import { FRAME, MARKER_CODES, MARKER_DICTIONARY, markerRect, paperFormatFromCode, qrSearchRect } from '../spec';
 import { solveHomography, applyHomography, type Homography } from './homography';
 import { createGray, downscaleRgba, grayToRgba, type GrayImage, type Point, type RgbaImage } from './image';
 import { boxBlur, flattenIllumination, warpRegion } from './warp';
@@ -24,7 +24,6 @@ export interface PageFrame {
   reprojectionError: number;
 }
 
-const MAX_MARKER_IDS = 16;
 /** Accept up to 3 wrong bits out of 36: strict enough to rule out boxes and text. */
 const MAX_HAMMING = 4;
 const DETECTION_SIZES = [1600, 2400, 1000];
@@ -38,7 +37,7 @@ export function detectMarkers(img: RgbaImage): FoundMarker[] {
     const { image, factor } = downscaleRgba(img, size);
     const found = detector
       .detect(image)
-      .filter((m) => m.id < MAX_MARKER_IDS)
+      .filter((m) => m.id < MARKER_CODES.length)
       .map((m) => ({
         formatCode: Math.floor(m.id / 4),
         corner: m.id % 4,

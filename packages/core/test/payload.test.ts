@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildPrintable } from '../src/drawing';
-import { base45Decode, base45Encode, decodePayload, encodePayload, sourceRowOf } from '../src/payload';
-import { boxInCell, gridCellRect } from '../src/layout';
+import { base45Decode, base45Encode, decodePayload, encodePayload, PayloadError, sourceRowOf } from '../src/payload';
+import { gridCellRect } from '../src/layout';
+import { boxInCell, PRINT_VERSION } from '../src/spec';
 import { normalizeSheet } from '../src/sheet';
 import { sampleTemplate } from './sim/scenario';
 
@@ -52,5 +53,21 @@ describe('page payload', () => {
   it('stays small for a typical list', () => {
     const { pages } = buildPrintable(sampleTemplate({ rows: 40 }));
     expect(encodePayload(pages[0].payload).length).toBeLessThan(80);
+  });
+
+  it('tells codes from a newer print format apart from invalid ones', () => {
+    const bytes = base45Decode(buildPrintable(sampleTemplate({ rows: 4 })).pages[0].code);
+    const withVersion = (v: number) => base45Encode(Uint8Array.of(v, ...bytes.slice(1)));
+    const reason = (v: number) => {
+      try {
+        decodePayload(withVersion(v));
+        return 'ok';
+      } catch (e) {
+        return e instanceof PayloadError ? e.reason : 'other';
+      }
+    };
+    expect(reason(PRINT_VERSION)).toBe('ok');
+    expect(reason(PRINT_VERSION + 1)).toBe('newer');
+    expect(reason(0)).toBe('invalid');
   });
 });

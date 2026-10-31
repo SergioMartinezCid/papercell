@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildPrintable, drawingToSvg } from '../src/drawing';
-import { contentRect, layoutSheet, paperFormat } from '../src/layout';
-import { MARKER_DICTIONARY, markerMatrix } from '../src/markers';
+import { contentRect, layoutSheet } from '../src/layout';
+import { markerMatrix } from '../src/markers';
+import { MARKER_DICTIONARY, paperFormat } from '../src/spec';
 import { AR } from '../src/vendor/js-aruco2/aruco.js';
 import { cellAddress, classifyCells, normalizeSheet, parseCellAddress, parseRangeAddress, rangeAddress } from '../src/sheet';
 import { sampleTemplate } from './sim/scenario';

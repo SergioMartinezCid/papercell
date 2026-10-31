@@ -62,6 +62,7 @@ export const es: Messages = {
   'scan.error.markers-not-found': 'No se encuentran los cuadrados de las esquinas. Incluye la página entera, plana y enfocada.',
   'scan.error.code-not-readable': 'No se pudo leer el código de página (QR). Haz la foto más cerca o con más luz.',
   'scan.error.code-invalid': 'El código de página no es válido.',
+  'scan.error.code-newer': 'Esta página se imprimió con una versión más nueva de Papercell. Recarga la aplicación para actualizarla y vuelve a escanear.',
   'scan.error.format-mismatch': 'El código de página no corresponde con la página.',
   'scan.error.unreadable-image': 'No se pudo abrir la imagen.',
   'scan.replaced': 'Sustituida una foto anterior de la misma página.',

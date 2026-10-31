@@ -60,6 +60,7 @@ export const en = {
   'scan.error.markers-not-found': 'Corner squares not found. Include the whole page, flat and in focus.',
   'scan.error.code-not-readable': 'The page code (QR) could not be read. Take the photo closer or with more light.',
   'scan.error.code-invalid': 'The page code is not valid.',
+  'scan.error.code-newer': 'This page was printed with a newer version of Papercell. Reload the app to update it, then scan again.',
   'scan.error.format-mismatch': 'The page code does not match the page.',
   'scan.error.unreadable-image': 'The image could not be opened.',
   'scan.replaced': 'Replaced an earlier photo of the same page.',

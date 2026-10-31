@@ -2,20 +2,11 @@
  * Printable pages as a list of simple shapes in millimetres, so the same page can be rendered as SVG
  * for printing or rasterised directly (e.g. for synthetic tests).
  */
-import {
-  FRAME,
-  CORNERS,
-  layoutSheet,
-  markerRect,
-  qrRect,
-  type PageLayout,
-  type Rect,
-  type SheetLayout,
-  type Template,
-} from './layout';
-import { markerId, markerMatrix, qrMatrix, MARKER_CELLS } from './markers';
+import { layoutSheet, type PageLayout, type Rect, type SheetLayout, type Template } from './layout';
+import { markerMatrix, qrMatrix } from './markers';
 import { encodePayload, pagePayload, templateFingerprint, type PagePayload } from './payload';
 import { DEFAULT_FONT_SIZE } from './sheet';
+import { CORNERS, FRAME, MARKER_CELLS, markerId, markerRect, qrRect } from './spec';
 
 export type Shape =
   | ({ kind: 'rect'; fill: string } & Rect)

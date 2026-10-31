@@ -23,9 +23,18 @@ Scanning a photo:
 4. Snap each box to its printed outline. This absorbs paper curl, and boxes that cannot be snapped borrow the shift of their neighbours.
 5. Measure the ink inside every box and split marked from empty per page. Values close to the threshold are flagged for review rather than guessed.
 
+## Printed pages keep working
+
+Paper printed today must still scan after the app is updated. Most of the layout travels in the QR code, so it can change freely. The few things the scanner assumes beyond it are the print format, kept in `packages/core/src/spec.ts`:
+
+- The frame, shared by every version: paper sizes, corner markers and where the QR code sits.
+- Per version, which is the first byte of the page code: the code's byte layout and the size of the boxes.
+
+These values never change. A new kind of page gets a new version, while the scanner keeps reading every earlier one. A page from a version newer than the app asks the user to reload the app to update it. `packages/core/test/compat.test.ts` scans pages recorded from every version's printer (`test/fixtures/v<n>/`), so a change that would break existing prints fails the tests.
+
 ## Cell kinds and future OCR
 
-`classifyCells` gives every cell a kind: `text` (printed, never read), `mark` (a box) or `blank`. The kinds flow through the layout, the page code and the reader, so a new kind can be added in the same places. For example, `write` would be a handwriting area read by OCR, with the review screen showing the crop next to the suggested value.
+`classifyCells` gives every cell a kind: `text` (printed, never read), `mark` (a box) or `blank`. The kinds flow through the layout, the page code and the reader, so a new kind can be added in the same places. For example, `write` would be a handwriting area read by OCR, with the review screen showing the crop next to the suggested value. Since the scanner would need to know about it, it would be a new print format version.
 
 ## Repository layout
 

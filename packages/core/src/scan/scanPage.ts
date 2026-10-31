@@ -1,6 +1,7 @@
 /** Photo of a printed page → which boxes are marked. */
-import { boxInCell, gridCellRect, paperFormatFromCode, type PaperFormat } from '../layout';
-import { decodePayload, sourceRowOf, type PagePayload } from '../payload';
+import { gridCellRect, type PaperFormat } from '../layout';
+import { decodePayload, PayloadError, sourceRowOf, type PagePayload } from '../payload';
+import { boxInCell, paperFormatFromCode } from '../spec';
 import { chooseThreshold, classify, type Threshold } from './classify';
 import { detectMarkers, fitPageFrame, readPageCode } from './detect';
 import { multiply, scaling } from './homography';
@@ -29,7 +30,8 @@ export interface PageScan {
   quality: { markers: number; reprojectionError: number; sourcePxPerMm: number };
 }
 
-export type ScanError = 'markers-not-found' | 'code-not-readable' | 'code-invalid' | 'format-mismatch';
+/** `code-newer`: the page was printed with a newer print format than this scanner knows (update the app). */
+export type ScanError = 'markers-not-found' | 'code-not-readable' | 'code-invalid' | 'code-newer' | 'format-mismatch';
 
 export type ScanOutcome = { ok: true; scan: PageScan } | { ok: false; error: ScanError; markers: number };
 
@@ -45,8 +47,9 @@ export function scanPage(image: RgbaImage, options: ScanOptions = {}): ScanOutco
   let payload: PagePayload;
   try {
     payload = decodePayload(code);
-  } catch {
-    return { ok: false, error: 'code-invalid', markers: markers.length };
+  } catch (e) {
+    const newer = e instanceof PayloadError && e.reason === 'newer';
+    return { ok: false, error: newer ? 'code-newer' : 'code-invalid', markers: markers.length };
   }
   const format = paperFormatFromCode(payload.formatCode);
   if (!format || payload.formatCode !== frame.format.code) return { ok: false, error: 'format-mismatch', markers: markers.length };
@@ -62,7 +65,7 @@ export function scanPage(image: RgbaImage, options: ScanOptions = {}): ScanOutco
 
   const targets: BoxTarget[] = payload.boxes.map((b) => {
     const cell = gridCellRect(payload.grid, b.pageRow, b.col, b.rowSpan, b.colSpan);
-    return { row: sourceRowOf(payload, b.pageRow), col: b.col, pageRow: b.pageRow, cell, box: boxInCell(cell) };
+    return { row: sourceRowOf(payload, b.pageRow), col: b.col, pageRow: b.pageRow, cell, box: boxInCell(cell, payload.version) };
   });
   const readings = readBoxes(page, pxPerMm, targets);
   const threshold = chooseThreshold(readings.map((r) => r.fill));
