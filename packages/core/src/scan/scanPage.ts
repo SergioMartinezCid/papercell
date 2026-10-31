@@ -1,7 +1,7 @@
 /** Photo of a printed page → which boxes are marked. */
 import { gridCellRect, type PaperFormat } from '../layout';
 import { decodePayload, PayloadError, sourceRowOf, type PagePayload } from '../payload';
-import { boxInCell, paperFormatFromCode } from '../spec';
+import { boxInCell, paperFormatFromCode, qrSearchRect } from '../spec';
 import { chooseThreshold, classify, type Threshold } from './classify';
 import { detectMarkers, fitPageFrame, readPageCode } from './detect';
 import { multiply, scaling } from './homography';
@@ -33,7 +33,15 @@ export interface PageScan {
 /** `code-newer`: the page was printed with a newer print format than this scanner knows (update the app). */
 export type ScanError = 'markers-not-found' | 'code-not-readable' | 'code-invalid' | 'code-newer' | 'format-mismatch';
 
-export type ScanOutcome = { ok: true; scan: PageScan } | { ok: false; error: ScanError; markers: number };
+export type ScanOutcome =
+  | { ok: true; scan: PageScan }
+  | {
+      ok: false;
+      error: ScanError;
+      markers: number;
+      /** For `code-not-readable`: the straightened area where the page code should be, to show what went wrong. */
+      codeArea?: GrayImage;
+    };
 
 export function scanPage(image: RgbaImage, options: ScanOptions = {}): ScanOutcome {
   const pxPerMm = options.pxPerMm ?? 6;
@@ -43,7 +51,10 @@ export function scanPage(image: RgbaImage, options: ScanOptions = {}): ScanOutco
 
   const gray = toGray(image);
   const code = readPageCode(gray, frame);
-  if (!code) return { ok: false, error: 'code-not-readable', markers: markers.length };
+  if (!code) {
+    const codeArea = warpRegion(gray, frame.pageToImage, qrSearchRect(frame.format), pxPerMm);
+    return { ok: false, error: 'code-not-readable', markers: markers.length, codeArea };
+  }
   let payload: PagePayload;
   try {
     payload = decodePayload(code);

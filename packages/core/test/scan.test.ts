@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { buildPrintable } from '../src/drawing';
 import { applyHomography, invert, solveHomography } from '../src/scan/homography';
+import { scanPage } from '../src/scan/scanPage';
+import { qrSearchRect } from '../src/spec';
+import { photograph, randomPhotoParams } from './sim/photo';
+import { mulberry32 } from './sim/random';
+import { fillRect, rasterize } from './sim/raster';
 import { runCase, sampleTemplate } from './sim/scenario';
 
 describe('solveHomography', () => {
@@ -46,5 +52,17 @@ describe('scanPage on synthetic photos', () => {
     expect(r.error).toBeUndefined();
     expect(r.silentWrong).toBe(0);
     expect(r.uncertain).toBeLessThanOrEqual(3);
+  });
+
+  it('returns the page code area when the code cannot be read', () => {
+    const page = buildPrintable(template).pages[0];
+    const area = qrSearchRect(page.layout.format);
+    const rng = mulberry32(41);
+    const image = rasterize(page.drawing, 8);
+    fillRect(image, area, [1, 1, 1], 8);
+    const outcome = scanPage(photograph(image, 8, randomPhotoParams(rng, 'easy'), rng));
+    if (outcome.ok) throw new Error('read a page without a code');
+    expect(outcome.error).toBe('code-not-readable');
+    expect(outcome.codeArea).toMatchObject({ width: Math.round(area.w * 6), height: Math.round(area.h * 6) });
   });
 });

@@ -10,7 +10,10 @@ export interface WorkerRequest {
   file: Blob;
 }
 
-export type WorkerResponse = { id: string; ok: true; scan: ScanSummary; preview: Blob } | { id: string; ok: false; error: ScanFailure };
+export type WorkerResponse =
+  | { id: string; ok: true; scan: ScanSummary; preview: Blob }
+  /** `thumb`: what the scanner saw (the page code area, or the whole photo when the page was not found). */
+  | { id: string; ok: false; error: ScanFailure; thumb?: Blob };
 
 export interface ScanItem {
   id: string;
@@ -22,6 +25,8 @@ export interface ScanItem {
   /** The straightened page (JPEG), and an object URL for it. */
   preview?: Blob;
   previewUrl?: string;
+  /** For a photo that could not be read: object URL of what the scanner saw. */
+  thumbUrl?: string;
   /** Decisions made while reviewing, keyed by `row,col`: true = marked. */
   decisions: Record<string, boolean>;
 }

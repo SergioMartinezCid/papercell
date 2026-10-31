@@ -1,8 +1,8 @@
 import { ActionIcon, Alert, Badge, Box, Button, Card, Group, Image, Loader, Paper, Popover, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconCamera, IconPhoto, IconPhotoScan, IconTrash } from '@tabler/icons-react';
+import { IconCamera, IconPhoto, IconPhotoScan, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { DEFAULT_OUTPUT, templateIdHex, type OutputOptions } from '@papercell/core';
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import { useI18n } from '../i18n';
 import { readJsonPreference, writePreference } from '../lib/preferences';
 import { deleteScan, listScans, saveScan } from '../lib/scans';
@@ -19,6 +19,11 @@ interface Props {
 
 let nextId = 0;
 
+function releaseUrls(item: ScanItem): void {
+  if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+  if (item.thumbUrl) URL.revokeObjectURL(item.thumbUrl);
+}
+
 export function ScanPage({ active, mobile }: Props) {
   const { t } = useI18n();
   const [items, setItems] = useState<ScanItem[]>([]);
@@ -30,6 +35,8 @@ export function ScanPage({ active, mobile }: Props) {
   const [dragging, setDragging] = useState(false);
   const cameraInput = useRef<HTMLInputElement>(null);
   const filesInput = useRef<HTMLInputElement>(null);
+  /** The failed photo that the next chosen photo replaces (Retake). */
+  const retaking = useRef<string | null>(null);
   /** Finished pages as last written to storage; null until the stored pages have been loaded. */
   const saved = useRef<Map<string, ScanItem> | null>(null);
 
@@ -68,13 +75,14 @@ export function ScanPage({ active, mobile }: Props) {
         setItems((prev) => [...prev, { id, name: file.name, addedAt: Date.now(), status: 'processing', decisions: {} }]);
         void scanImage(id, file).then((res) => {
           if (!res.ok) {
-            setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: 'error', error: res.error } : i)));
+            const thumbUrl = res.thumb && URL.createObjectURL(res.thumb);
+            setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: 'error', error: res.error, thumbUrl } : i)));
             return;
           }
           const samePage = (i: ScanItem) =>
             i.id !== id && i.scan?.payload.templateId === res.scan.payload.templateId && i.scan.payload.pageIndex === res.scan.payload.pageIndex;
           const replaced = itemsRef.current.filter(samePage);
-          for (const r of replaced) if (r.previewUrl) URL.revokeObjectURL(r.previewUrl);
+          replaced.forEach(releaseUrls);
           if (replaced.length) notifications.show({ message: t('scan.replaced') });
           const previewUrl = URL.createObjectURL(res.preview);
           setItems((prev) =>
@@ -122,12 +130,12 @@ export function ScanPage({ active, mobile }: Props) {
   }, [groups, templates]);
 
   const remove = (item: ScanItem) => {
-    if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    releaseUrls(item);
     setItems((prev) => prev.filter((i) => i.id !== item.id));
   };
 
   const removeAll = () => {
-    for (const item of items) if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    items.forEach(releaseUrls);
     // Pages still being read are kept.
     setItems((prev) => prev.filter((i) => i.status === 'processing'));
   };
@@ -143,9 +151,19 @@ export function ScanPage({ active, mobile }: Props) {
       return next;
     });
 
+  /** Opens the camera or the file chooser; `replace` is a failed photo to replace with the new one. */
+  const pick = (input: RefObject<HTMLInputElement | null>, replace: ScanItem | null = null) => {
+    retaking.current = replace?.id ?? null;
+    input.current?.click();
+  };
+
   const onInput = (e: ChangeEvent<HTMLInputElement>) => {
-    addFiles(Array.from(e.currentTarget.files ?? []));
+    const files = Array.from(e.currentTarget.files ?? []);
     e.currentTarget.value = '';
+    const replaced = itemsRef.current.find((i) => i.id === retaking.current);
+    retaking.current = null;
+    if (replaced && files.length > 0) remove(replaced);
+    addFiles(files);
   };
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -163,10 +181,10 @@ export function ScanPage({ active, mobile }: Props) {
 
       {mobile ? (
         <Stack gap="xs">
-          <Button size="lg" leftSection={<IconCamera />} onClick={() => cameraInput.current?.click()}>
+          <Button size="lg" leftSection={<IconCamera />} onClick={() => pick(cameraInput)}>
             {t('scan.add.camera')}
           </Button>
-          <Button variant="default" leftSection={<IconPhoto size={18} />} onClick={() => filesInput.current?.click()}>
+          <Button variant="default" leftSection={<IconPhoto size={18} />} onClick={() => pick(filesInput)}>
             {t('scan.add.choose')}
           </Button>
           <Text size="xs" c="dimmed" ta="center">
@@ -189,7 +207,7 @@ export function ScanPage({ active, mobile }: Props) {
           <Stack align="center" gap="xs" ta="center">
             <IconPhotoScan size={40} stroke={1.4} />
             <Text>{t('scan.add.drop')}</Text>
-            <Button variant="default" leftSection={<IconPhoto size={18} />} onClick={() => filesInput.current?.click()}>
+            <Button variant="default" leftSection={<IconPhoto size={18} />} onClick={() => pick(filesInput)}>
               {t('scan.add.choose')}
             </Button>
             <Text size="xs" c="dimmed">
@@ -221,7 +239,34 @@ export function ScanPage({ active, mobile }: Props) {
             withCloseButton
             onClose={() => remove(item)}
           >
-            {t(`scan.error.${item.error ?? 'unreadable-image'}`)}
+            <Group gap="sm" align="flex-start" wrap="nowrap">
+              {item.thumbUrl && (
+                <Image
+                  src={item.thumbUrl}
+                  w={item.error === 'code-not-readable' ? 120 : 90}
+                  radius="xs"
+                  alt={item.error === 'code-not-readable' ? t('scan.codeArea') : item.name}
+                  style={{ flexShrink: 0 }}
+                />
+              )}
+              <Stack gap="xs" align="flex-start">
+                <Text size="sm">{t(`scan.error.${item.error ?? 'unreadable-image'}`)}</Text>
+                {item.error === 'code-newer' ? (
+                  <Button size="sm" color="red" leftSection={<IconRefresh size={16} />} onClick={() => window.location.reload()}>
+                    {t('scan.reload')}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    color="red"
+                    leftSection={mobile ? <IconCamera size={16} /> : <IconPhoto size={16} />}
+                    onClick={() => pick(mobile ? cameraInput : filesInput, item)}
+                  >
+                    {mobile ? t('scan.retake') : t('scan.chooseAnother')}
+                  </Button>
+                )}
+              </Stack>
+            </Group>
           </Alert>
         ),
       )}
