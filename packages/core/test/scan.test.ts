@@ -3,6 +3,7 @@ import { buildPrintable } from '../src/drawing';
 import { applyHomography, invert, solveHomography } from '../src/scan/homography';
 import { scanPage } from '../src/scan/scanPage';
 import { qrSearchRect } from '../src/spec';
+import { INKS } from './sim/marks';
 import { photograph, randomPhotoParams } from './sim/photo';
 import { mulberry32 } from './sim/random';
 import { fillRect, rasterize } from './sim/raster';
@@ -52,6 +53,20 @@ describe('scanPage on synthetic photos', () => {
     expect(r.error).toBeUndefined();
     expect(r.silentWrong).toBe(0);
     expect(r.uncertain).toBeLessThanOrEqual(3);
+  });
+
+  // Quick zigzags with a red pen: light once in grey, and covering only part of the box.
+  it.each([51, 52, 53])('reads small red squiggles with no silent mistakes and little to review (seed %i)', (seed) => {
+    const r = runCase({ template, seed, difficulty: 'easy', styles: ['squiggle'], ink: INKS.red });
+    expect(r.error).toBeUndefined();
+    expect(r.silentWrong).toBe(0);
+    expect(r.uncertain).toBeLessThanOrEqual(3);
+  });
+
+  it.each([61, 62])('never silently misreads small red squiggles in a hard photo (seed %i)', (seed) => {
+    const r = runCase({ template, seed, difficulty: 'hard', styles: ['squiggle'], ink: INKS.red });
+    expect(r.error).toBeUndefined();
+    expect(r.silentWrong).toBe(0);
   });
 
   it('returns the page code area when the code cannot be read', () => {

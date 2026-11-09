@@ -7,7 +7,7 @@ import { drawMark, drawSpeck, INKS, type MarkStyle } from './marks';
 import type { RgbaImage } from '../../src/scan/image';
 import { photograph, randomPhotoParams, type PhotoParams } from './photo';
 import { mulberry32, pick, type Rng } from './random';
-import { rasterize } from './raster';
+import { rasterize, type Rgb } from './raster';
 
 export interface SampleOptions {
   rows?: number;
@@ -47,6 +47,8 @@ export interface CaseOptions {
   difficulty: 'easy' | 'hard';
   /** Mark styles to draw, picked uniformly. */
   styles?: MarkStyle[];
+  /** Pen colour; by default black or blue. */
+  ink?: Rgb;
   renderPxPerMm?: number;
   photo?: Partial<PhotoParams>;
   /** Called with the simulated photo, e.g. to save it for inspection. */
@@ -82,7 +84,9 @@ export function runCase(c: CaseOptions): CaseResult {
   const truth = chooseMarks(page.layout.boxes.map((b) => ({ row: b.row, col: b.col })), rng);
 
   const styles = c.styles ?? DEFAULT_STYLES;
-  const ink = pick(rng, [INKS.black, INKS.blue]);
+  // Picked even when an ink is given, so the same seed draws the same marks with any pen.
+  const pen = pick(rng, [INKS.black, INKS.blue]);
+  const ink = c.ink ?? pen;
   const drawn = new Map<string, MarkStyle | 'speck'>();
   for (const b of page.layout.boxes) {
     const key = `${b.row},${b.col}`;

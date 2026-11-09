@@ -1,5 +1,6 @@
 /** Hand-made marks drawn into a printed page. */
 import type { Rect } from '../../src/layout';
+import type { Point } from '../../src/scan/image';
 import { fillRect, type Rgb, type RgbImage } from './raster';
 import { uniform, type Rng } from './random';
 
@@ -13,11 +14,14 @@ export type MarkStyle =
   /** A cross through the box. */
   | 'cross'
   /** Filled in with a light pencil. */
-  | 'light';
+  | 'light'
+  /** A quick zigzag with a fine pen, covering about half the box. */
+  | 'squiggle';
 
-export const INKS: Record<'black' | 'blue' | 'pencil', Rgb> = {
+export const INKS: Record<'black' | 'blue' | 'red' | 'pencil', Rgb> = {
   black: [0.1, 0.1, 0.12],
   blue: [0.12, 0.17, 0.48],
+  red: [0.88, 0.45, 0.45],
   pencil: [0.55, 0.55, 0.57],
 };
 
@@ -37,13 +41,22 @@ export function drawMark(img: RgbImage, box: Rect, cell: Rect, style: MarkStyle,
     case 'light':
       strokes(img, grow(box, 0.3), 0.4, 0.05, INKS.pencil, p, rng);
       break;
-    case 'cross': {
-      const steps = 40;
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const d = 0.6;
-        fillRect(img, { x: box.x + t * box.w - d / 2, y: box.y + t * box.h - d / 2, w: d, h: d }, ink, p);
-        fillRect(img, { x: box.x + (1 - t) * box.w - d / 2, y: box.y + t * box.h - d / 2, w: d, h: d }, ink, p);
+    case 'cross':
+      line(img, { x: box.x, y: box.y }, { x: box.x + box.w, y: box.y + box.h }, 0.6, ink, p);
+      line(img, { x: box.x + box.w, y: box.y }, { x: box.x, y: box.y + box.h }, 0.6, ink, p);
+      break;
+    case 'squiggle': {
+      const w = box.w * uniform(rng, 0.3, 0.6);
+      const h = box.h * uniform(rng, 0.55, 0.85);
+      const x = box.x + (box.w - w) / 2 + uniform(rng, -0.1, 0.1) * box.w;
+      const y = box.y + (box.h - h) / 2 + uniform(rng, -0.1, 0.1) * box.h;
+      const turns = 3 + Math.floor(rng() * 3);
+      const pen = uniform(rng, 0.4, 0.6);
+      let from = { x: x + uniform(rng, -0.15, 0.15) * w, y };
+      for (let i = 1; i <= turns; i++) {
+        const to = { x: x + (i % 2) * w + uniform(rng, -0.15, 0.15) * w, y: y + (i / turns) * h };
+        line(img, from, to, pen, ink, p);
+        from = to;
       }
       break;
     }
@@ -63,6 +76,15 @@ function strokes(img: RgbImage, area: Rect, spacing: number, gapChance: number, 
     const start = area.x + uniform(rng, -0.3, 0.5);
     const end = area.x + area.w + uniform(rng, -0.5, 0.3);
     fillRect(img, { x: start, y, w: end - start, h: Math.min(PEN, area.y + area.h - y) }, ink, p, uniform(rng, 0.85, 1));
+  }
+}
+
+/** A straight pen stroke of width `pen` between two points (mm). */
+function line(img: RgbImage, a: Point, b: Point, pen: number, ink: Rgb, p: number): void {
+  const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.1));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    fillRect(img, { x: a.x + t * (b.x - a.x) - pen / 2, y: a.y + t * (b.y - a.y) - pen / 2, w: pen, h: pen }, ink, p);
   }
 }
 
