@@ -30,6 +30,14 @@ describe('chooseThreshold', () => {
     expect(classify(0.12, t).marked).toBe(true);
   });
 
+  it('flags a light mark on a page where the other marks are dark', () => {
+    const empty = Array.from({ length: 40 }, (_, i) => 0.01 + (i % 5) * 0.005);
+    const dark = Array.from({ length: 12 }, (_, i) => 0.6 + i * 0.02);
+    const t = chooseThreshold([...empty, ...dark, 0.146]);
+    expect(classify(0.146, t)).toEqual({ marked: false, uncertain: true });
+    for (const f of empty) expect(classify(f, t).uncertain).toBe(false);
+  });
+
   it('does not split a page of only empty boxes', () => {
     const uneven = Array.from({ length: 60 }, (_, i) => (i / 59) * 0.08);
     expect(chooseThreshold(uneven).separated).toBe(false);

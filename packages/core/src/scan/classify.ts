@@ -5,12 +5,17 @@ export interface Threshold {
   value: number;
   /** Fills closer than this to the threshold are flagged for review. */
   margin: number;
+  /**
+   * Fills from here up to the threshold are flagged too: they stand out from the empty boxes like a
+   * light mark, even on a page where most marks are much darker.
+   */
+  doubtFrom: number;
   /** Whether the page showed two clearly different groups (marked and empty). */
   separated: boolean;
 }
 
 /** Used when every box looks alike (all empty or all marked). */
-const FALLBACK: Threshold = { value: 0.3, margin: 0.08, separated: false };
+const FALLBACK: Threshold = { value: 0.3, margin: 0.08, doubtFrom: 0.3, separated: false };
 /** Two groups this far apart are always told apart. */
 const CLEAR_GAP = 0.2;
 /**
@@ -43,18 +48,27 @@ export function chooseThreshold(fills: number[]): Threshold {
     if (between > best.between) best = { between, k, m0, m1 };
   }
   const gap = best.m1 - best.m0;
-  const spread = deviation(s.slice(0, best.k), best.m0);
+  const spread = spreadOf(s.slice(0, best.k));
   if (gap < Math.min(CLEAR_GAP, Math.max(MIN_GAP, MIN_CONTRAST * spread))) return FALLBACK;
   const value = clamp(best.m0 + POSITION * gap, LOWEST, 0.5);
-  return { value, margin: Math.max(0.05, 0.4 * (value - best.m0)), separated: true };
+  const doubtFrom = Math.max(LOWEST, best.m0 + MIN_CONTRAST * spread);
+  return { value, margin: Math.max(0.05, 0.4 * (value - best.m0)), doubtFrom, separated: true };
 }
 
-function deviation(values: number[], mean: number): number {
-  return Math.sqrt(values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length);
+/**
+ * Standard deviation of a sorted group without its darkest 5%, so that a light mark or a speck that
+ * fell into the group does not widen it. Empty boxes in two shades (cell colours inside the boxes)
+ * still count as spread out.
+ */
+function spreadOf(sorted: number[]): number {
+  const kept = sorted.slice(0, Math.max(1, sorted.length - Math.round(0.05 * sorted.length)));
+  const mean = kept.reduce((sum, v) => sum + v, 0) / kept.length;
+  return Math.sqrt(kept.reduce((sum, v) => sum + (v - mean) ** 2, 0) / kept.length);
 }
 
 export function classify(fill: number, t: Threshold): { marked: boolean; uncertain: boolean } {
-  return { marked: fill >= t.value, uncertain: Math.abs(fill - t.value) < t.margin };
+  const doubtful = Math.abs(fill - t.value) < t.margin || (fill >= t.doubtFrom && fill < t.value);
+  return { marked: fill >= t.value, uncertain: doubtful };
 }
 
 function clamp(v: number, lo: number, hi: number): number {
