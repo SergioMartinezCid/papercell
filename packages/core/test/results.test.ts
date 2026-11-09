@@ -17,6 +17,25 @@ describe('chooseThreshold', () => {
     expect(classify(0.03, chooseThreshold([0.01, 0.02, 0.03])).marked).toBe(false);
     expect(classify(0.8, chooseThreshold([0.8, 0.82, 0.79])).marked).toBe(true);
   });
+
+  it('tells light marks apart when the empty boxes are even', () => {
+    // Small marks with a coloured pen, as measured on photos: close to the empty boxes, but far more
+    // than the empty boxes differ from each other.
+    const empty = Array.from({ length: 40 }, (_, i) => 0.01 + (i % 5) * 0.005);
+    const marks = [0.12, 0.16, 0.2, 0.25, 0.28];
+    const t = chooseThreshold([...empty, ...marks]);
+    expect(t.separated).toBe(true);
+    for (const f of empty) expect(classify(f, t)).toEqual({ marked: false, uncertain: false });
+    for (const f of marks.slice(1)) expect(classify(f, t)).toEqual({ marked: true, uncertain: false });
+    expect(classify(0.12, t).marked).toBe(true);
+  });
+
+  it('does not split a page of only empty boxes', () => {
+    const uneven = Array.from({ length: 60 }, (_, i) => (i / 59) * 0.08);
+    expect(chooseThreshold(uneven).separated).toBe(false);
+    const withSpecks = [...Array.from({ length: 40 }, (_, i) => 0.01 + (i % 5) * 0.005), 0.05, 0.06];
+    expect(chooseThreshold(withSpecks).separated).toBe(false);
+  });
 });
 
 describe('buildOutput', () => {
