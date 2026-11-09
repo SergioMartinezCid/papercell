@@ -87,13 +87,29 @@ describe('layoutSheet', () => {
   });
 
   it('prints backgrounds according to the setting', () => {
-    const count = (backgrounds: 'none' | 'text' | 'all') => {
+    const rects = (backgrounds: 'none' | 'text' | 'all') => {
       const t = sampleTemplate({ rows: 4, stripe: '#cfe2f3', settings: { backgrounds } });
-      return buildPrintable(t).pages[0].drawing.shapes.filter((s) => s.kind === 'rect').length;
+      return buildPrintable(t).pages[0].drawing.shapes.filter((s) => s.kind === 'rect');
     };
-    expect(count('none')).toBe(0);
-    expect(count('text')).toBe(2);
-    expect(count('all')).toBe(10);
+    expect(rects('none')).toHaveLength(0);
+    expect(rects('text')).toHaveLength(2);
+    // Two striped rows of five cells, then their eight boxes kept white.
+    expect(rects('all').filter((r) => r.fill === '#cfe2f3')).toHaveLength(10);
+    expect(rects('all').filter((r) => r.fill === '#ffffff')).toHaveLength(8);
+  });
+
+  it('keeps boxes in coloured cells white, with a margin inside the cell', () => {
+    const t = sampleTemplate({ rows: 4, stripe: '#cfe2f3', settings: { backgrounds: 'all' } });
+    const page = buildPrintable(t).pages[0];
+    const white = page.drawing.shapes.flatMap((s) => (s.kind === 'rect' && s.fill === '#ffffff' ? [s] : []));
+    for (const box of page.layout.boxes.filter((b) => b.row % 2 === 0)) {
+      const area = white.find((r) => r.x <= box.box.x && r.x + r.w >= box.box.x + box.box.w && r.y <= box.box.y && r.y + r.h >= box.box.y + box.box.h);
+      expect(area).toBeDefined();
+      expect(area!.x).toBeGreaterThanOrEqual(box.cell.x);
+      expect(area!.x + area!.w).toBeLessThanOrEqual(box.cell.x + box.cell.w);
+      expect(area!.y).toBeGreaterThanOrEqual(box.cell.y);
+      expect(area!.y + area!.h).toBeLessThanOrEqual(box.cell.y + box.cell.h);
+    }
   });
 
   it('renders an SVG sized in millimetres', () => {

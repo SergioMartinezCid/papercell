@@ -7,7 +7,7 @@ import { boxInCell, FRAME, paperFormat } from './spec';
 
 export type PaperSize = 'a4' | 'letter';
 export type Orientation = 'portrait' | 'landscape';
-/** Which cells keep their background colour when printed. */
+/** Which cells keep their background colour when printed. Boxes themselves always stay white. */
 export type BackgroundMode = 'none' | 'text' | 'all';
 /** `page`: shrink to fit everything on one page. `width`: fill the width and add pages as needed. */
 export type FitMode = 'page' | 'width';

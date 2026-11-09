@@ -1,4 +1,4 @@
-import { Card, Input, SegmentedControl, Stack, Switch, Text, TextInput, Title } from '@mantine/core';
+import { Card, Input, SegmentedControl, Stack, Switch, TextInput, Title } from '@mantine/core';
 import type { LayoutSettings } from '@papercell/core';
 import { useI18n } from '../i18n';
 
@@ -65,11 +65,6 @@ export function SettingsCard({ settings, onChange }: Props) {
               { value: 'all', label: t('prepare.settings.bgAll') },
             ]}
           />
-          {settings.backgrounds === 'all' && (
-            <Text size="xs" c="orange" mt={4}>
-              {t('prepare.settings.bgAllHint')}
-            </Text>
-          )}
         </Input.Wrapper>
         <Switch label={t('prepare.settings.gridlines')} checked={settings.gridlines} onChange={(e) => onChange({ gridlines: e.currentTarget.checked })} />
         <Switch

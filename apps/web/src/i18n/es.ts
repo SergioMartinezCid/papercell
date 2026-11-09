@@ -40,7 +40,6 @@ export const es: Messages = {
   'prepare.settings.bgNone': 'Ninguno',
   'prepare.settings.bgText': 'Celdas con texto',
   'prepare.settings.bgAll': 'Todas',
-  'prepare.settings.bgAllHint': 'Dentro de las casillas solo son seguros los colores muy claros: los más oscuros hacen que las casillas vacías parezcan marcadas.',
   'prepare.settings.gridlines': 'Líneas de cuadrícula',
   'prepare.settings.repeatHeader': 'Repetir la cabecera en cada página',
   'prepare.summary.boxes': '{count} casillas',

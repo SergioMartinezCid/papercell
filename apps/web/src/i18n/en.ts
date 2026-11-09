@@ -38,7 +38,6 @@ export const en = {
   'prepare.settings.bgNone': 'None',
   'prepare.settings.bgText': 'Text cells',
   'prepare.settings.bgAll': 'All cells',
-  'prepare.settings.bgAllHint': 'Inside box cells only very light colours are safe: darker ones make empty boxes look marked.',
   'prepare.settings.gridlines': 'Gridlines',
   'prepare.settings.repeatHeader': 'Repeat header rows on every page',
   'prepare.summary.boxes': '{count} boxes',

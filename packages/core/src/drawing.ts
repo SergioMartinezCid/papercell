@@ -2,7 +2,7 @@
  * Printable pages as a list of simple shapes in millimetres, so the same page can be rendered as SVG
  * for printing or rasterised directly (e.g. for synthetic tests).
  */
-import { layoutSheet, type PageLayout, type Rect, type SheetLayout, type Template } from './layout';
+import { layoutSheet, type PageBox, type PageLayout, type Rect, type SheetLayout, type Template } from './layout';
 import { markerMatrix, qrMatrix } from './markers';
 import { encodePayload, pagePayload, templateFingerprint, type PagePayload } from './payload';
 import { DEFAULT_FONT_SIZE } from './sheet';
@@ -47,6 +47,8 @@ export interface PrintableSheet {
 const GRID_COLOR = '#b7b7b7';
 const BOX_COLOR = '#262626';
 const BOX_STROKE = 0.3;
+/** White kept around a box in a coloured cell (mm), so its outline stands out against paper. */
+const BOX_CLEARANCE = 1;
 const PX_TO_PT = 72 / 96;
 
 export function buildPrintable(template: Template): PrintableSheet {
@@ -81,11 +83,17 @@ export function drawPage(template: Template, page: PageLayout, qr: boolean[][]):
   const { settings } = template;
   const shapes: Shape[] = [];
 
+  const coloured = new Set<string>();
   for (const cell of page.cells) {
     const bg = cell.style?.background;
     if (bg && isPrintedBackground(bg) && (settings.backgrounds === 'all' || (settings.backgrounds === 'text' && cell.kind === 'text'))) {
       shapes.push({ kind: 'rect', ...cell.rect, fill: bg });
+      coloured.add(`${cell.pageRow},${cell.col}`);
     }
+  }
+  // Boxes stay white, so a cell colour is never read as a mark.
+  for (const box of page.boxes) {
+    if (coloured.has(`${box.pageRow},${box.col}`)) shapes.push({ kind: 'rect', ...clearArea(box), fill: '#ffffff' });
   }
   if (settings.gridlines) {
     for (const cell of page.cells) shapes.push({ kind: 'frame', ...cell.rect, stroke: GRID_COLOR, width: 0.2 });
@@ -125,6 +133,15 @@ export function drawPage(template: Template, page: PageLayout, qr: boolean[][]):
     shapes.push(textShape(`${page.index + 1} / ${page.count}`, { x: titleX, y, w: page.format.width - 2 * titleX, h: 6 }, 3.5, false, 'center'));
   }
   return { width: page.format.width, height: page.format.height, shapes };
+}
+
+/** The box and BOX_CLEARANCE around it, within its cell. */
+function clearArea(b: PageBox): Rect {
+  const x = Math.max(b.cell.x, b.box.x - BOX_CLEARANCE);
+  const y = Math.max(b.cell.y, b.box.y - BOX_CLEARANCE);
+  const right = Math.min(b.cell.x + b.cell.w, b.box.x + b.box.w + BOX_CLEARANCE);
+  const bottom = Math.min(b.cell.y + b.cell.h, b.box.y + b.box.h + BOX_CLEARANCE);
+  return { x, y, w: right - x, h: bottom - y };
 }
 
 function textShape(text: string, rect: Rect, size: number, bold: boolean, align: 'left' | 'center'): Shape {
