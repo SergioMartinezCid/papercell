@@ -35,6 +35,19 @@ export function toGray(img: RgbaImage): GrayImage {
   return out;
 }
 
+/**
+ * Brightness of the darkest colour channel. Pens of any colour (red, blue, green) absorb strongly in
+ * at least one channel, so they read nearly as dark as black ink; paper and grey print are unchanged.
+ */
+export function darkestChannel(img: RgbaImage): GrayImage {
+  const out = createGray(img.width, img.height);
+  const src = img.data;
+  for (let i = 0, j = 0; j < out.data.length; i += 4, j++) {
+    out.data[j] = Math.min(src[i], src[i + 1], src[i + 2]) / 255;
+  }
+  return out;
+}
+
 export function grayToRgba(img: GrayImage): RgbaImage {
   const data = new Uint8ClampedArray(img.width * img.height * 4);
   for (let j = 0, i = 0; j < img.data.length; j++, i += 4) {

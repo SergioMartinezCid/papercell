@@ -5,7 +5,7 @@ import { boxInCell, paperFormatFromCode, qrSearchRect } from '../spec';
 import { chooseThreshold, classify, type Threshold } from './classify';
 import { detectMarkers, fitPageFrame, readPageCode } from './detect';
 import { multiply, scaling } from './homography';
-import { blockMean, toGray, type GrayImage, type RgbaImage } from './image';
+import { blockMean, darkestChannel, toGray, type GrayImage, type RgbaImage } from './image';
 import { readBoxes, type BoxReading, type BoxTarget } from './read';
 import { flattenIllumination, pixelsPerMm, warpRegion } from './warp';
 
@@ -24,7 +24,7 @@ export interface PageScan {
   format: PaperFormat;
   boxes: ReadBox[];
   threshold: Threshold;
-  /** Straightened page with flattened lighting, sampled at `pxPerMm` from the paper's top-left corner. */
+  /** Straightened page (darkest colour channel) with flattened lighting, sampled at `pxPerMm` from the paper's top-left corner. */
   page: GrayImage;
   pxPerMm: number;
   quality: { markers: number; reprojectionError: number; sourcePxPerMm: number };
@@ -65,10 +65,12 @@ export function scanPage(image: RgbaImage, options: ScanOptions = {}): ScanOutco
   const format = paperFormatFromCode(payload.formatCode);
   if (!format || payload.formatCode !== frame.format.code) return { ok: false, error: 'format-mismatch', markers: markers.length };
 
+  // Boxes are read from the darkest colour channel, so marks in a coloured pen count like black ones.
   // Average blocks of pixels first when the photo is much sharper than needed (less noise, no aliasing).
+  const ink = darkestChannel(image);
   const sourcePxPerMm = pixelsPerMm(frame.pageToImage, format.width / 2, format.height / 2);
   const k = Math.max(1, Math.floor(sourcePxPerMm / (pxPerMm * 1.5)));
-  const source = k > 1 ? blockMean(gray, k) : gray;
+  const source = k > 1 ? blockMean(ink, k) : ink;
   const toSource = k > 1 ? multiply(scaling(1 / k), frame.pageToImage) : frame.pageToImage;
 
   const straight = warpRegion(source, toSource, { x: 0, y: 0, w: format.width, h: format.height }, pxPerMm);

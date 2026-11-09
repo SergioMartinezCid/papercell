@@ -19,7 +19,7 @@ Scanning a photo:
 
 1. Find the corner markers and fit a homography (perspective correction).
 2. Read the QR page code.
-3. Straighten the page and even out its lighting (morphological closing, which also removes hard shadow edges).
+3. Straighten the page and even out its lighting (morphological closing, which also removes hard shadow edges). Boxes are read from the darkest colour channel, so a pen of any colour counts like black.
 4. Snap each box to its printed outline. This absorbs paper curl, and boxes that cannot be snapped borrow the shift of their neighbours.
 5. Measure the ink inside every box and split marked from empty per page. Values close to the threshold are flagged for review rather than guessed.
 
