@@ -29,7 +29,7 @@ export const DEFAULT_SETTINGS: LayoutSettings = {
   orientation: 'portrait',
   fit: 'page',
   repeatHeader: true,
-  backgrounds: 'text',
+  backgrounds: 'all',
   gridlines: true,
   title: '',
 };
