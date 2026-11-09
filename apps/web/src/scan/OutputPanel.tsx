@@ -1,8 +1,8 @@
-import { Alert, Button, Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Button, Group, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconCopy, IconDownload } from '@tabler/icons-react';
 import { buildOutput, cellAddress, parseRangeAddress, rangeAddress, toCsv, toTsv, type CellRange, type OutputOptions, type Template } from '@papercell/core';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useI18n } from '../i18n';
 import { copyText, downloadText } from '../lib/files';
 import { RangeGrid } from './RangeGrid';
@@ -14,9 +14,11 @@ interface Props {
   fileName: string;
   options: OutputOptions;
   onOptions: (patch: Partial<OutputOptions>) => void;
+  /** Shown before the results (the scanned pages); on wide screens, in the column beside the table. */
+  children?: ReactNode;
 }
 
-export function OutputPanel({ pages, template, fileName, options, onOptions }: Props) {
+export function OutputPanel({ pages, template, fileName, options, onOptions, children }: Props) {
   const { t } = useI18n();
   const payload = pages[0].scan!.payload;
   const unchecked = pages.reduce((n, p) => n + p.scan!.boxes.filter((b) => needsCheck(p, b)).length, 0);
@@ -74,62 +76,78 @@ export function OutputPanel({ pages, template, fileName, options, onOptions }: P
   };
 
   return (
-    <Stack gap="sm">
-      <Stack gap={4} align="flex-start">
-        <Text size="sm" fw={500}>
-          {t('output.shape')}
-        </Text>
-        <SegmentedControl
-          value={selection ? 'selection' : options.shape}
-          onChange={setShape}
-          data={[
-            { value: 'boxes', label: t('output.shapeBoxes') },
-            { value: 'range', label: t('output.shapeRange') },
-            { value: 'selection', label: t('output.shapeSelection') },
-          ]}
-          className="output-shape"
-        />
+    <div className="results-layout">
+      <Stack gap="md" className="results-side">
+        {children}
+        <Title order={3} size="h5">
+          {t('output.title')}
+        </Title>
+        <Stack gap="sm">
+          <Stack gap={4} align="flex-start">
+            <Text size="sm" fw={500}>
+              {t('output.shape')}
+            </Text>
+            <SegmentedControl
+              value={selection ? 'selection' : options.shape}
+              onChange={setShape}
+              data={[
+                { value: 'boxes', label: t('output.shapeBoxes') },
+                { value: 'range', label: t('output.shapeRange') },
+                { value: 'selection', label: t('output.shapeSelection') },
+              ]}
+              className="output-shape"
+            />
+          </Stack>
+          <Group gap="sm" align="flex-start" wrap="wrap">
+            <TextInput
+              label={t('output.cells')}
+              value={cellsText}
+              onChange={(e) => typeCells(e.currentTarget.value)}
+              onBlur={() => !cellsInvalid && setCellsDraft(null)}
+              error={cellsInvalid && t('output.cellsInvalid', { range: rangeAddress(whole) })}
+              w={150}
+              spellCheck={false}
+              autoCapitalize="characters"
+            />
+            <TextInput label={t('output.markedValue')} value={options.markedValue} onChange={(e) => onOptions({ markedValue: e.currentTarget.value })} w={120} />
+            <TextInput
+              label={t('output.emptyValue')}
+              placeholder={t('output.emptyPlaceholder')}
+              value={options.emptyValue}
+              onChange={(e) => onOptions({ emptyValue: e.currentTarget.value })}
+              w={120}
+            />
+          </Group>
+          {unchecked > 0 && (
+            <Alert color="orange" p="xs">
+              {t('output.unchecked', { count: unchecked })}
+            </Alert>
+          )}
+          {output.unknownCells > 0 && (
+            <Alert color="orange" p="xs">
+              {t('output.unknown', { count: output.unknownCells })}
+            </Alert>
+          )}
+          <Text size="sm" fw={500}>
+            {t('output.pasteAt', { cell })}
+          </Text>
+        </Stack>
       </Stack>
-      <Group gap="sm" align="flex-start" wrap="wrap">
-        <TextInput
-          label={t('output.cells')}
-          value={cellsText}
-          onChange={(e) => typeCells(e.currentTarget.value)}
-          onBlur={() => !cellsInvalid && setCellsDraft(null)}
-          error={cellsInvalid && t('output.cellsInvalid', { range: rangeAddress(whole) })}
-          w={150}
-          spellCheck={false}
-          autoCapitalize="characters"
+      <Stack gap={4} className="results-table">
+        <RangeGrid
+          values={grid}
+          boxes={boxes}
+          block={output.block}
+          anchor={anchor}
+          label={t('output.preview')}
+          onSelect={select}
+          maxHeight="var(--results-table-height)"
         />
-        <TextInput label={t('output.markedValue')} value={options.markedValue} onChange={(e) => onOptions({ markedValue: e.currentTarget.value })} w={120} />
-        <TextInput
-          label={t('output.emptyValue')}
-          placeholder={t('output.emptyPlaceholder')}
-          value={options.emptyValue}
-          onChange={(e) => onOptions({ emptyValue: e.currentTarget.value })}
-          w={120}
-        />
-      </Group>
-      {unchecked > 0 && (
-        <Alert color="orange" p="xs">
-          {t('output.unchecked', { count: unchecked })}
-        </Alert>
-      )}
-      {output.unknownCells > 0 && (
-        <Alert color="orange" p="xs">
-          {t('output.unknown', { count: output.unknownCells })}
-        </Alert>
-      )}
-      <Text size="sm" fw={500}>
-        {t('output.pasteAt', { cell })}
-      </Text>
-      <Stack gap={4}>
-        <RangeGrid values={grid} boxes={boxes} block={output.block} anchor={anchor} label={t('output.preview')} onSelect={select} />
         <Text size="xs" c="dimmed">
           {t('output.selectHint')}
         </Text>
       </Stack>
-      <Group gap="sm" grow>
+      <Group gap="sm" grow className="results-actions">
         <Button leftSection={<IconCopy size={16} />} onClick={() => void copy()}>
           {t('output.copy')}
         </Button>
@@ -137,6 +155,6 @@ export function OutputPanel({ pages, template, fileName, options, onOptions }: P
           {t('output.download')}
         </Button>
       </Group>
-    </Stack>
+    </div>
   );
 }

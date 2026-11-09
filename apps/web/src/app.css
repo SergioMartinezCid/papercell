@@ -94,6 +94,43 @@
   line-height: 1.25;
 }
 
+/* Scan results: the table below the pages and settings, or beside them on wide screens. */
+.results-layout {
+  --results-table-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+}
+
+@media (min-width: 62em) {
+  .results-layout {
+    /* The table fills the window below the header, less its hint and some room. */
+    --results-table-height: calc(100dvh - var(--app-shell-header-height, 56px) - 7rem);
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'side table'
+      'actions table';
+    gap: var(--mantine-spacing-md) var(--mantine-spacing-lg);
+    align-items: start;
+  }
+
+  .results-side {
+    grid-area: side;
+  }
+
+  .results-actions {
+    grid-area: actions;
+  }
+
+  .results-table {
+    grid-area: table;
+    position: sticky;
+    top: calc(var(--app-shell-header-height, 56px) + var(--mantine-spacing-md));
+  }
+}
+
 /* Scanned range: highlighted cells are the ones that get copied. */
 .range-grid {
   user-select: none;

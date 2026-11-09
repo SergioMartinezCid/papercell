@@ -13,6 +13,8 @@ interface Props {
   anchor: { row: number; col: number };
   label: string;
   onSelect: (range: CellRange) => void;
+  /** Height before the grid scrolls (any CSS length). */
+  maxHeight?: number | string;
 }
 
 /** A row or column header leaves the other coordinate open (null): it stands for the whole line. */
@@ -25,7 +27,7 @@ interface Point {
  * The scanned range as a small spreadsheet. With a mouse, drag (or shift-click) to select a block; on touch
  * screens, tap the first and the last cell, so that scrolling still works. Headers select whole rows or columns.
  */
-export function RangeGrid({ values, boxes, block, anchor, label, onSelect }: Props) {
+export function RangeGrid({ values, boxes, block, anchor, label, onSelect, maxHeight = 320 }: Props) {
   const rows = values.length;
   const cols = values[0]?.length ?? 0;
   const start = useRef<Point | null>(null);
@@ -76,7 +78,7 @@ export function RangeGrid({ values, boxes, block, anchor, label, onSelect }: Pro
   const inCols = (c: number) => c >= block.left && c <= block.right;
 
   return (
-    <Table.ScrollContainer minWidth={0} maxHeight={320}>
+    <Table.ScrollContainer minWidth={0} maxHeight={maxHeight}>
       <Table
         className="range-grid"
         withTableBorder

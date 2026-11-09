@@ -175,7 +175,7 @@ export function ScanPage({ active, mobile }: Props) {
   const reviewItem = items.find((i) => i.id === reviewId) ?? null;
 
   return (
-    <Stack gap="md" maw={980} mx="auto">
+    <Stack gap="md" maw={1280} mx="auto">
       <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={onInput} />
       <input ref={filesInput} type="file" accept="image/*" multiple hidden onChange={onInput} />
 
@@ -300,7 +300,8 @@ export function ScanPage({ active, mobile }: Props) {
         const have = new Set(g.pages.map((p) => p.scan!.payload.pageIndex));
         const missing = Array.from({ length: g.pageCount }, (_, i) => i).filter((i) => !have.has(i));
         return (
-          <Card key={g.id} withBorder radius="md" padding="md">
+          // Not clipped, so the results table can stay in view while scrolling (wide screens).
+          <Card key={g.id} withBorder radius="md" padding="md" style={{ overflow: 'visible' }}>
             <Stack gap="md">
               <Group justify="space-between" gap="xs">
                 <Title order={2} size="h4">
@@ -315,45 +316,43 @@ export function ScanPage({ active, mobile }: Props) {
                   {t('scan.missing', { pages: missing.map((i) => i + 1).join(', ') })}
                 </Alert>
               )}
-              <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="sm">
-                {g.pages.map((p) => {
-                  const marked = p.scan!.boxes.filter((b) => isMarked(p, b)).length;
-                  const check = p.scan!.boxes.filter((b) => needsCheck(p, b)).length;
-                  return (
-                    <Paper key={p.id} withBorder radius="sm" p={6}>
-                      <Box style={{ cursor: 'pointer' }} onClick={() => setReviewId(p.id)}>
-                        <Image src={p.previewUrl} alt={t('scan.page', { n: p.scan!.payload.pageIndex + 1 })} radius="xs" />
-                      </Box>
-                      <Text size="sm" fw={500} mt={4}>
-                        {t('scan.page', { n: p.scan!.payload.pageIndex + 1 })}
-                      </Text>
-                      <Text size="xs" c={check ? 'orange' : 'dimmed'}>
-                        {t('scan.counts', { marked, check })}
-                      </Text>
-                      <Group gap={4} mt={6} wrap="nowrap">
-                        <Button size="xs" variant={check ? 'filled' : 'light'} color={check ? 'orange' : undefined} style={{ flex: 1 }} onClick={() => setReviewId(p.id)}>
-                          {t('scan.review')}
-                        </Button>
-                        <Tooltip label={t('scan.remove')}>
-                          <ActionIcon variant="subtle" color="gray" aria-label={t('scan.remove')} onClick={() => remove(p)}>
-                            <IconTrash size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
-                    </Paper>
-                  );
-                })}
-              </SimpleGrid>
-              <Title order={3} size="h5">
-                {t('output.title')}
-              </Title>
               <OutputPanel
                 pages={g.pages}
                 template={stored?.template}
                 fileName={(stored?.template.settings.title || `papercell-${templateIdHex(g.id)}`).replace(/[^\w.-]+/g, '_')}
                 options={options}
                 onOptions={updateOptions}
-              />
+              >
+                <SimpleGrid type="container" cols={{ base: 2, '700px': 3, '900px': 4 }} spacing="sm">
+                  {g.pages.map((p) => {
+                    const marked = p.scan!.boxes.filter((b) => isMarked(p, b)).length;
+                    const check = p.scan!.boxes.filter((b) => needsCheck(p, b)).length;
+                    return (
+                      <Paper key={p.id} withBorder radius="sm" p={6}>
+                        <Box style={{ cursor: 'pointer' }} onClick={() => setReviewId(p.id)}>
+                          <Image src={p.previewUrl} alt={t('scan.page', { n: p.scan!.payload.pageIndex + 1 })} radius="xs" />
+                        </Box>
+                        <Text size="sm" fw={500} mt={4}>
+                          {t('scan.page', { n: p.scan!.payload.pageIndex + 1 })}
+                        </Text>
+                        <Text size="xs" c={check ? 'orange' : 'dimmed'}>
+                          {t('scan.counts', { marked, check })}
+                        </Text>
+                        <Group gap={4} mt={6} wrap="nowrap">
+                          <Button size="xs" variant={check ? 'filled' : 'light'} color={check ? 'orange' : undefined} style={{ flex: 1 }} onClick={() => setReviewId(p.id)}>
+                            {t('scan.review')}
+                          </Button>
+                          <Tooltip label={t('scan.remove')}>
+                            <ActionIcon variant="subtle" color="gray" aria-label={t('scan.remove')} onClick={() => remove(p)}>
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      </Paper>
+                    );
+                  })}
+                </SimpleGrid>
+              </OutputPanel>
             </Stack>
           </Card>
         );
