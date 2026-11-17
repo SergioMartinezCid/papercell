@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { buildPrintable } from '../src/drawing';
 import { base45Decode, base45Encode, decodePayload, encodePayload, PayloadError, sourceRowOf } from '../src/payload';
 import { gridCellRect } from '../src/layout';
-import { boxInCell, PRINT_VERSION } from '../src/spec';
+import { boxInCell, digitBoxes, PRINT_VERSION } from '../src/spec';
 import { normalizeSheet } from '../src/sheet';
-import { sampleTemplate } from './sim/scenario';
+import { numberTemplate, sampleTemplate } from './sim/scenario';
 
 describe('base45', () => {
   it('round-trips arbitrary bytes, including odd lengths', () => {
@@ -48,6 +48,26 @@ describe('page payload', () => {
     expect(sourceRowOf(second, 1)).toBe(printable.pages[1].layout.rows[1]);
     const first = decodePayload(printable.pages[0].code);
     expect(first.boxes.find((b) => b.pageRow === 3 && b.col === 1)).toMatchObject({ colSpan: 2 });
+  });
+
+  it('round-trips number fields and reproduces their digit boxes exactly', () => {
+    const template = numberTemplate({ rows: 30, tokens: ['[##]', '[#,#]', '[ ]', '[000.00]'], settings: { fit: 'width' } });
+    for (const page of buildPrintable(template).pages) {
+      const decoded = decodePayload(page.code);
+      expect(decoded).toEqual(page.payload);
+      expect(decoded.boxes).toHaveLength(page.layout.boxes.length);
+      const numbers = decoded.numbers!.map((n) => {
+        const cell = gridCellRect(decoded.grid, n.pageRow, n.col, n.rowSpan, n.colSpan);
+        return { row: sourceRowOf(decoded, n.pageRow), col: n.col, field: n.field, boxes: digitBoxes(cell, n.field, decoded.version).boxes };
+      });
+      const printed = page.layout.numbers.map((n) => ({ row: n.row, col: n.col, field: n.field, boxes: n.boxes }));
+      expect(numbers.sort((a, b) => a.row - b.row || a.col - b.col)).toEqual(printed.sort((a, b) => a.row - b.row || a.col - b.col));
+    }
+  });
+
+  it('stays small with a column of number fields', () => {
+    const { pages } = buildPrintable(numberTemplate({ rows: 40, tokens: ['[##]'] }));
+    expect(encodePayload(pages[0].payload).length).toBeLessThan(100);
   });
 
   it('stays small for a typical list', () => {

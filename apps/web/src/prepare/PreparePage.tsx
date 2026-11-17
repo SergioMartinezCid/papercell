@@ -5,7 +5,7 @@ import {
   buildPrintable,
   cellAddress,
   cellKey,
-  classifyCells,
+  planCells,
   DEFAULT_SETTINGS,
   parseCellAddress,
   templateFingerprint,
@@ -25,6 +25,8 @@ import { RecentCard } from './RecentCard';
 import { SettingsCard } from './SettingsCard';
 
 const SMALL_BOX_MM = 3.5;
+/** Digit boxes lower than this are hard to write in. */
+const SMALL_DIGIT_MM = 5;
 
 interface Props {
   active: boolean;
@@ -128,9 +130,10 @@ export function PreparePage({ active, mobile, touch }: Props) {
   const chosen = useCallback((row: number, col: number) => template?.overrides[cellKey(row, col)], [template]);
   const automatic = useCallback(
     (row: number, col: number) => {
-      if (!template) return 'blank' as const;
+      if (!template) return { kind: 'blank' as const };
       const { [cellKey(row, col)]: _, ...others } = template.overrides;
-      return classifyCells(template.sheet, others)[row][col];
+      const plan = planCells(template.sheet, others);
+      return { kind: plan.kinds[row][col], field: plan.fields.get(cellKey(row, col)) };
     },
     [template],
   );
@@ -211,19 +214,24 @@ export function PreparePage({ active, mobile, touch }: Props) {
           <Group justify="space-between" gap="sm">
             <Group gap="xs">
               <Badge variant="light" size="lg">
-                {t('prepare.summary.boxes', { count: layout.boxCount })}
+                {layout.boxCount === 1 ? t('prepare.summary.box') : t('prepare.summary.boxes', { count: layout.boxCount })}
               </Badge>
+              {layout.numberCount > 0 && (
+                <Badge variant="light" size="lg">
+                  {layout.numberCount === 1 ? t('prepare.summary.number') : t('prepare.summary.numbers', { count: layout.numberCount })}
+                </Badge>
+              )}
               <Badge variant="light" color="gray" size="lg">
                 {layout.pages.length === 1 ? t('prepare.summary.page') : t('prepare.summary.pages', { count: layout.pages.length })}
               </Badge>
             </Group>
             {!mobile && (
-              <Button leftSection={<IconPrinter size={18} />} onClick={() => void print()} disabled={layout.boxCount === 0}>
+              <Button leftSection={<IconPrinter size={18} />} onClick={() => void print()} disabled={layout.boxCount + layout.numberCount === 0}>
                 {t('prepare.print')}
               </Button>
             )}
           </Group>
-          {layout.boxCount === 0 && (
+          {layout.boxCount + layout.numberCount === 0 && (
             <Alert color="orange" icon={<IconAlertTriangle />}>
               {t('prepare.warn.noBoxes')}
             </Alert>
@@ -231,6 +239,11 @@ export function PreparePage({ active, mobile, touch }: Props) {
           {layout.boxCount > 0 && layout.minBoxSide < SMALL_BOX_MM && (
             <Alert color="orange" icon={<IconAlertTriangle />}>
               {t('prepare.warn.smallBoxes', { size: layout.minBoxSide.toFixed(1) })}
+            </Alert>
+          )}
+          {layout.numberCount > 0 && layout.minDigitHeight < SMALL_DIGIT_MM && (
+            <Alert color="orange" icon={<IconAlertTriangle />}>
+              {t('prepare.warn.smallDigits', { size: layout.minDigitHeight.toFixed(1) })}
             </Alert>
           )}
           <Text size="sm" c="dimmed">
@@ -266,7 +279,7 @@ export function PreparePage({ active, mobile, touch }: Props) {
         {preview}
         {settingsCard}
         {recentCard}
-        {layout && layout.boxCount > 0 && (
+        {layout && layout.boxCount + layout.numberCount > 0 && (
           <Box className="sticky-actions">
             <Button fullWidth size="md" leftSection={<IconPrinter size={18} />} onClick={() => void print()}>
               {t('prepare.print')}

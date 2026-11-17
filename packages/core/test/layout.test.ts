@@ -5,7 +5,7 @@ import { markerMatrix } from '../src/markers';
 import { MARKER_DICTIONARY, paperFormat } from '../src/spec';
 import { AR } from '../src/vendor/js-aruco2/aruco.js';
 import { cellAddress, classifyCells, normalizeSheet, parseCellAddress, parseRangeAddress, rangeAddress } from '../src/sheet';
-import { sampleTemplate } from './sim/scenario';
+import { numberTemplate, sampleTemplate } from './sim/scenario';
 
 const text = (rows: string[][]) => normalizeSheet({ cells: rows.map((r) => r.map((t) => ({ text: t }))) });
 
@@ -57,6 +57,35 @@ describe('classifyCells', () => {
       ['hidden', 'hidden', 'hidden'],
       ['text', 'hidden', 'mark'],
     ]);
+  });
+});
+
+describe('number fields', () => {
+  const within = (inner: { x: number; y: number; w: number; h: number }, outer: typeof inner) =>
+    inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.w <= outer.x + outer.w + 1e-9 && inner.y + inner.h <= outer.y + outer.h + 1e-9;
+
+  it('prints one box per digit inside the cell, with a slot for the separator', () => {
+    const layout = layoutSheet(numberTemplate({ rows: 3, tokens: ['[##,#]'] }), 29);
+    expect(layout.numberCount).toBe(3);
+    const n = layout.pages[0].numbers[0];
+    expect(n.boxes).toHaveLength(3);
+    for (const b of n.boxes) expect(within(b, n.cell)).toBe(true);
+    for (let i = 1; i < 3; i++) expect(n.boxes[i].x).toBeGreaterThan(n.boxes[i - 1].x + n.boxes[i - 1].w);
+    expect(n.separator!.x).toBeCloseTo(n.boxes[1].x + n.boxes[1].w, 9);
+    expect(n.separator!.x + n.separator!.w).toBeCloseTo(n.boxes[2].x, 9);
+  });
+
+  it('shrinks the boxes to fit a narrow cell', () => {
+    const template = numberTemplate({ rows: 3, tokens: ['[####]'] });
+    template.sheet = normalizeSheet({ ...template.sheet, colWidths: [160, 40] });
+    const n = layoutSheet(template, 29).pages[0].numbers[0];
+    for (const b of n.boxes) expect(within(b, n.cell)).toBe(true);
+    expect(n.boxes[3].x + n.boxes[3].w - n.boxes[0].x).toBeLessThanOrEqual(n.cell.w * 0.92 + 1e-9);
+  });
+
+  it('counts number fields as input rows, not header rows', () => {
+    const sheet = text([['Name', 'Score'], ['', '[##]'], ['x', '']]);
+    expect(layoutSheet({ ...sampleTemplate(), sheet }, 29).headerRows).toBe(1);
   });
 });
 

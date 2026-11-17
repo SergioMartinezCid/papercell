@@ -1,5 +1,5 @@
 /** A rectangular range copied from a spreadsheet: text, light formatting and geometry. */
-import { findToken, parseToken, type CellToken } from './tokens';
+import { findToken, parseToken, type CellToken, type NumberField } from './tokens';
 
 export interface CellStyle {
   bold?: boolean;
@@ -44,16 +44,15 @@ export interface Sheet {
  * How a cell is treated:
  * - `text`: printed, never scanned.
  * - `mark`: printed as an empty box and read back as marked / empty.
+ * - `number`: printed as a row of boxes, one per digit, and read back as the number written in them.
  * - `blank`: printed as an empty cell and not scanned.
  * - `covered`: hidden under a merged cell.
  * - `hidden`: in a row or column hidden in the spreadsheet.
- *
- * A future `write` kind (handwriting read by OCR) fits next to `mark`.
  */
-export type CellKind = 'text' | 'mark' | 'blank' | 'covered' | 'hidden';
+export type CellKind = 'text' | 'mark' | 'number' | 'blank' | 'covered' | 'hidden';
 
 /** A kind chosen by hand in the app for a cell that has no text. */
-export type KindOverride = 'mark' | 'blank';
+export type KindOverride = 'mark' | 'blank' | { number: NumberField };
 
 /** Per-cell overrides chosen by the user, keyed by `cellKey(row, col)`. */
 export type KindOverrides = Record<string, KindOverride>;
@@ -117,13 +116,24 @@ export function cellToken(cell: SheetCell): CellToken | null {
   return cell.note ? findToken(cell.note) : null;
 }
 
+export interface CellPlan {
+  kinds: CellKind[][];
+  /** The field of every `number` cell, keyed by `cellKey(row, col)`. */
+  fields: Map<string, NumberField>;
+}
+
+/** The kind of every cell (see `planCells`). */
+export function classifyCells(sheet: Sheet, overrides: KindOverrides = {}): CellKind[][] {
+  return planCells(sheet, overrides).kinds;
+}
+
 /**
  * Decides the kind of every cell. Cells with text are printed only. Other cells take, in this order, the
  * kind chosen by hand (`overrides`), the one their token sets (see `tokens.ts`) or else become boxes,
  * except in rows without text (spacer rows), which stay blank. Hidden rows and columns are left out, as if
  * they were not in the range.
  */
-export function classifyCells(sheet: Sheet, overrides: KindOverrides = {}): CellKind[][] {
+export function planCells(sheet: Sheet, overrides: KindOverrides = {}): CellPlan {
   const hiddenRows = new Set(sheet.hiddenRows);
   const hiddenCols = new Set(sheet.hiddenCols);
   const tokens = sheet.cells.map((row) => row.map(cellToken));
@@ -137,14 +147,24 @@ export function classifyCells(sheet: Sheet, overrides: KindOverrides = {}): Cell
       }
     }
   }
+  const fields = new Map<string, NumberField>();
   kinds.forEach((row, r) => {
     const spacer = !row.some((k) => k === 'text');
     row.forEach((kind, c) => {
       if (kind !== 'blank') return;
-      row[c] = overrides[cellKey(r, c)] ?? tokens[r][c]?.kind ?? (spacer ? 'blank' : 'mark');
+      const key = cellKey(r, c);
+      const override = overrides[key];
+      const token = tokens[r][c];
+      if (override !== undefined) {
+        if (typeof override === 'object') fields.set(key, override.number);
+        row[c] = typeof override === 'object' ? 'number' : override;
+      } else if (token) {
+        if (token.kind === 'number') fields.set(key, token.field);
+        row[c] = token.kind;
+      } else row[c] = spacer ? 'blank' : 'mark';
     });
   });
-  return kinds;
+  return { kinds, fields };
 }
 
 export function countMarks(kinds: CellKind[][]): number {

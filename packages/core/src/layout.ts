@@ -2,8 +2,9 @@
  * Turns a sheet into printable pages. All geometry is in millimetres on the paper, and every
  * grid edge is quantised to 0.1 mm so the page code (QR) reproduces it exactly when scanning.
  */
-import { classifyCells, type CellKind, type CellStyle, type KindOverrides, type Sheet } from './sheet';
-import { boxInCell, FRAME, paperFormat } from './spec';
+import { cellKey, planCells, type CellKind, type CellStyle, type KindOverrides, type Sheet } from './sheet';
+import { boxInCell, digitBoxes, FRAME, paperFormat } from './spec';
+import type { NumberField } from './tokens';
 
 export type PaperSize = 'a4' | 'letter';
 export type Orientation = 'portrait' | 'landscape';
@@ -99,6 +100,19 @@ export interface PageCell {
   style?: CellStyle;
 }
 
+/** A number field on a page: one box per digit. */
+export interface PageNumber {
+  row: number;
+  col: number;
+  pageRow: number;
+  rowSpan: number;
+  colSpan: number;
+  cell: Rect;
+  field: NumberField;
+  boxes: Rect[];
+  separator: Rect | null;
+}
+
 export interface PageBox {
   row: number;
   col: number;
@@ -122,6 +136,7 @@ export interface PageLayout {
   headerRows: number;
   cells: PageCell[];
   boxes: PageBox[];
+  numbers: PageNumber[];
 }
 
 export interface SheetLayout {
@@ -134,6 +149,9 @@ export interface SheetLayout {
   boxCount: number;
   /** Smallest box side in mm (0 when there are no boxes). */
   minBoxSide: number;
+  numberCount: number;
+  /** Height of the smallest digit boxes in mm (0 when there are no number fields). */
+  minDigitHeight: number;
 }
 
 /**
@@ -143,7 +161,7 @@ export interface SheetLayout {
 export function layoutSheet(template: Template, qrSide: number): SheetLayout {
   const { sheet, settings } = template;
   const format = paperFormat(settings.paper, settings.orientation);
-  const kinds = classifyCells(sheet, template.overrides);
+  const { kinds, fields } = planCells(sheet, template.overrides);
   const content = contentRect(format, qrSide);
   const rowCount = sheet.rowHeights.length;
   // Hidden rows and columns keep their place in the range, with no size on paper.
@@ -155,7 +173,7 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
   const totalHeightPx = rowHeights.reduce((a, b) => a + b, 0);
 
   let headerRows = 0;
-  while (headerRows < rowCount && !kinds[headerRows].includes('mark')) headerRows++;
+  while (headerRows < rowCount && !kinds[headerRows].some((k) => k === 'mark' || k === 'number')) headerRows++;
   if (headerRows === rowCount) headerRows = 0;
 
   let scale = Math.min(MAX_SCALE, content.w / Math.max(totalWidthPx, 1));
@@ -200,6 +218,7 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
     while (pageHeaderRows < Math.min(rows.length, headerRows) && rows[pageHeaderRows] === pageHeaderRows) pageHeaderRows++;
     const cells: PageCell[] = [];
     const boxes: PageBox[] = [];
+    const numbers: PageNumber[] = [];
     rows.forEach((row, pageRow) => {
       sheet.cells[row].forEach((cell, col) => {
         const kind = kinds[row][col];
@@ -211,12 +230,17 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
         const rect = gridCellRect(grid, pageRow, col, rowSpan, colSpan);
         cells.push({ row, col, pageRow, rowSpan, colSpan, rect, kind, text: cell.text, style: cell.style });
         if (kind === 'mark') boxes.push({ row, col, pageRow, rowSpan, colSpan, cell: rect, box: boxInCell(rect) });
+        if (kind === 'number') {
+          const field = fields.get(cellKey(row, col))!;
+          numbers.push({ row, col, pageRow, rowSpan, colSpan, cell: rect, field, ...digitBoxes(rect, field) });
+        }
       });
     });
-    return { index, count: pageRows.length, format, scale, grid, rows, headerRows: pageHeaderRows, cells, boxes };
+    return { index, count: pageRows.length, format, scale, grid, rows, headerRows: pageHeaderRows, cells, boxes, numbers };
   });
 
   const allBoxes = pages.flatMap((p) => p.boxes);
+  const allNumbers = pages.flatMap((p) => p.numbers);
   return {
     format,
     scale,
@@ -225,6 +249,8 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
     headerRows,
     boxCount: allBoxes.length,
     minBoxSide: allBoxes.length ? Math.min(...allBoxes.map((b) => b.box.w)) : 0,
+    numberCount: allNumbers.length,
+    minDigitHeight: allNumbers.length ? Math.min(...allNumbers.map((n) => n.boxes[0].h)) : 0,
   };
 }
 

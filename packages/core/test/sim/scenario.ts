@@ -144,3 +144,17 @@ function chooseMarks(boxes: Array<{ row: number; col: number }>, rng: Rng): Set<
   }
   return marked;
 }
+
+/** A list with number fields: a label column, then one column per token (e.g. `[##]`, `[#,#]`). */
+export function numberTemplate(o: { rows?: number; tokens?: string[]; settings?: Partial<LayoutSettings> } = {}): Template {
+  const rows = o.rows ?? 20;
+  const tokens = o.tokens ?? ['[##]', '[#,#]', '[###]'];
+  const header: SheetCell[] = [{ text: 'Item', style: { bold: true } }, ...tokens.map((_, i) => ({ text: `Value ${i + 1}`, style: { bold: true } }))];
+  const body = Array.from({ length: rows }, (_, r) => [{ text: `Item ${r + 1}` }, ...tokens.map((text) => ({ text }))]);
+  return {
+    sheet: normalizeSheet({ cells: [header, ...body], colWidths: [160, ...tokens.map((t) => 30 + 22 * t.length)], rowHeights: Array(rows + 1).fill(24) }),
+    overrides: {},
+    settings: { ...DEFAULT_SETTINGS, title: 'Numbers', ...o.settings },
+    anchor: { row: 0, col: 0 },
+  };
+}

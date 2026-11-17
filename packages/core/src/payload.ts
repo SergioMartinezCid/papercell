@@ -4,12 +4,17 @@
  */
 import type { PageGrid, PageLayout, Template } from './layout';
 import { PRINT_VERSION } from './spec';
+import { sameField, type NumberField } from './tokens';
 
 export interface PayloadBox {
   pageRow: number;
   col: number;
   rowSpan: number;
   colSpan: number;
+}
+
+export interface PayloadNumber extends PayloadBox {
+  field: NumberField;
 }
 
 export interface PagePayload {
@@ -31,6 +36,8 @@ export interface PagePayload {
   /** Source row of the first page row after the header. */
   bodyStart: number;
   boxes: PayloadBox[];
+  /** Number fields (from version 2). */
+  numbers?: PayloadNumber[];
 }
 
 export function pagePayload(template: Template, page: PageLayout, templateId: number): PagePayload {
@@ -48,6 +55,7 @@ export function pagePayload(template: Template, page: PageLayout, templateId: nu
     headerRows: page.headerRows,
     bodyStart: page.rows[page.headerRows] ?? page.rows.length,
     boxes: page.boxes.map(({ pageRow, col, rowSpan, colSpan }) => ({ pageRow, col, rowSpan, colSpan })),
+    numbers: page.numbers.map(({ pageRow, col, rowSpan, colSpan, field }) => ({ pageRow, col, rowSpan, colSpan, field })),
   };
 }
 
@@ -75,17 +83,47 @@ export function encodePayload(p: PagePayload): string {
   w.varint(p.headerRows);
   w.varint(p.bodyStart);
 
-  const maskBytes = Math.ceil(p.sourceCols / 8);
+  writeCells(w, p.boxes, rowCount, p.sourceCols);
+  if (p.version >= 2) writeNumbers(w, p.numbers ?? [], rowCount, p.sourceCols);
+  return base45Encode(w.bytes());
+}
+
+/** Cells as a run-length coded bit mask per page row, then the spans of merged ones. */
+function writeCells(w: ByteWriter, cells: PayloadBox[], rowCount: number, sourceCols: number): void {
+  const maskBytes = Math.ceil(sourceCols / 8);
   const rowMasks = Array.from({ length: rowCount }, () => new Uint8Array(maskBytes));
-  for (const b of p.boxes) rowMasks[b.pageRow][b.col >> 3] |= 1 << (b.col & 7);
+  for (const b of cells) rowMasks[b.pageRow][b.col >> 3] |= 1 << (b.col & 7);
   for (const [run, value] of runs(rowMasks.map((m) => Array.from(m).join(',')))) {
     w.varint(run);
     for (const byte of value.split(',')) w.u8(Number(byte));
   }
-  const spanned = p.boxes.filter((b) => b.rowSpan > 1 || b.colSpan > 1);
+  const spanned = cells.filter((b) => b.rowSpan > 1 || b.colSpan > 1);
   w.varint(spanned.length);
   for (const b of spanned) for (const v of [b.pageRow, b.col, b.rowSpan, b.colSpan]) w.varint(v);
-  return base45Encode(w.bytes());
+}
+
+const SEPARATORS = ['', '.', ','] as const;
+
+/**
+ * Version 2: the distinct fields, then the number cells like the boxes, then (with several fields) which
+ * field each cell has, in reading order.
+ */
+function writeNumbers(w: ByteWriter, numbers: PayloadNumber[], rowCount: number, sourceCols: number): void {
+  const fields: NumberField[] = [];
+  const ordered = [...numbers].sort((a, b) => a.pageRow - b.pageRow || a.col - b.col);
+  const index = ordered.map((n) => {
+    const i = fields.findIndex((f) => sameField(f, n.field));
+    return i >= 0 ? i : fields.push(n.field) - 1;
+  });
+  w.varint(fields.length);
+  for (const f of fields) {
+    w.varint(f.digits);
+    w.varint(f.decimals);
+    w.u8(SEPARATORS.indexOf(f.separator));
+  }
+  if (fields.length === 0) return;
+  writeCells(w, ordered, rowCount, sourceCols);
+  if (fields.length > 1) for (const i of index) w.varint(i);
 }
 
 /**
@@ -96,6 +134,7 @@ export function decodePayload(text: string): PagePayload {
   const r = new ByteReader(base45Decode(text));
   const version = r.u8();
   if (version === 1) return decodeV1(r);
+  if (version === 2) return decodeV2(r);
   if (version > PRINT_VERSION) throw new PayloadError(`Page code version ${version} is newer than this reader`, 'newer');
   throw new PayloadError(`Unknown page code version ${version}`);
 }
@@ -154,6 +193,47 @@ function decodeV1(r: ByteReader): PagePayload {
     bodyStart,
     boxes,
   };
+}
+
+/** Version 2 is version 1 followed by the number fields (see `writeNumbers`). */
+function decodeV2(r: ByteReader): PagePayload {
+  const base = decodeV1(r);
+  const rowCount = base.grid.rowEdges.length - 1;
+  const fieldCount = r.varint();
+  const fields: NumberField[] = Array.from({ length: fieldCount }, () => {
+    const digits = r.varint();
+    const decimals = r.varint();
+    const separator = SEPARATORS[r.u8()];
+    if (separator === undefined || digits < 1 || (decimals > 0) !== (separator !== '')) throw new PayloadError('Corrupt number field');
+    return { digits, decimals, separator };
+  });
+  const cells = fieldCount ? readCells(r, rowCount, base.sourceCols) : [];
+  const numbers = cells.map((c) => ({ ...c, field: fields[fieldCount > 1 ? r.varint() : 0] }));
+  if (numbers.some((n) => !n.field)) throw new PayloadError('Corrupt number field');
+  return { ...base, version: 2, numbers };
+}
+
+function readCells(r: ByteReader, rowCount: number, sourceCols: number): PayloadBox[] {
+  const maskBytes = Math.ceil(sourceCols / 8);
+  const cells: PayloadBox[] = [];
+  let pageRow = 0;
+  while (pageRow < rowCount) {
+    const run = r.varint();
+    if (run === 0 || pageRow + run > rowCount) throw new PayloadError('Corrupt cell mask');
+    const mask = Array.from({ length: maskBytes }, () => r.u8());
+    for (let i = 0; i < run; i++, pageRow++) {
+      for (let col = 0; col < sourceCols; col++) {
+        if (mask[col >> 3] & (1 << (col & 7))) cells.push({ pageRow, col, rowSpan: 1, colSpan: 1 });
+      }
+    }
+  }
+  const spannedCount = r.varint();
+  for (let i = 0; i < spannedCount; i++) {
+    const [row, col, rowSpan, colSpan] = [r.varint(), r.varint(), r.varint(), r.varint()];
+    const cell = cells.find((c) => c.pageRow === row && c.col === col);
+    if (cell) Object.assign(cell, { rowSpan, colSpan });
+  }
+  return cells;
 }
 
 export class PayloadError extends Error {

@@ -1,5 +1,5 @@
-import { cellAddress, drawingToSvg, type CellKind, type KindOverride, type PrintablePage } from '@papercell/core';
-import { Box, Button, Paper, Popover, Stack, Text } from '@mantine/core';
+import { cellAddress, drawingToSvg, fieldToken, parseField, type CellKind, type KindOverride, type NumberField, type PrintablePage } from '@papercell/core';
+import { Box, Button, Group, Paper, Popover, Stack, Text, TextInput } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { memo, useMemo, useState } from 'react';
 import { useI18n } from '../i18n';
@@ -12,7 +12,7 @@ interface Props {
   /** The kind chosen by hand for a cell, if any. */
   chosen: (row: number, col: number) => KindOverride | undefined;
   /** The kind a cell gets when nothing is chosen by hand (from its token, note or position). */
-  automatic: (row: number, col: number) => CellKind;
+  automatic: (row: number, col: number) => { kind: CellKind; field?: NumberField };
   onChoose: (row: number, col: number, kind: KindOverride | null) => void;
 }
 
@@ -27,8 +27,10 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
   const { t } = useI18n();
   const svg = useMemo(() => drawingToSvg(page.drawing, `v${page.layout.index}-`), [page]);
   const [target, setTarget] = useState<Target | null>(null);
+  /** Pattern typed for a number field (e.g. `##,#`). */
+  const [pattern, setPattern] = useState('');
   const { width, height } = page.drawing;
-  const choosable = page.layout.cells.filter((c) => c.kind === 'mark' || c.kind === 'blank');
+  const choosable = page.layout.cells.filter((c) => c.kind === 'mark' || c.kind === 'number' || c.kind === 'blank');
   const pct = (v: number, total: number) => `${(v / total) * 100}%`;
 
   const choose = (kind: KindOverride | null) => {
@@ -37,7 +39,15 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
   };
   const current = target && chosen(target.row, target.col);
   const auto = target && automatic(target.row, target.col);
-  const kindName = (kind: CellKind) => t(kind === 'mark' ? 'prepare.cell.box' : 'prepare.cell.blank');
+  const kindName = ({ kind, field }: { kind: CellKind; field?: NumberField }) =>
+    kind === 'number' && field ? `${t('prepare.cell.number')} ${fieldToken(field)}` : t(kind === 'mark' ? 'prepare.cell.box' : 'prepare.cell.blank');
+  const typed = parseField(pattern);
+  const openMenu = (row: number, col: number, rect: Target['rect']) => {
+    const own = chosen(row, col);
+    const field = typeof own === 'object' ? own.number : automatic(row, col).field;
+    setPattern(field ? fieldToken(field).slice(1, -1) : '##');
+    setTarget({ row, col, rect });
+  };
   const option = (label: string, selected: boolean, onClick: () => void) => (
     <Button
       variant={selected ? 'light' : 'subtle'}
@@ -57,12 +67,12 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
         {choosable.map((c) => (
           <rect
             key={`${c.row},${c.col}`}
-            className={kinds[c.row]?.[c.col] === 'mark' ? 'toggle-cell is-box' : 'toggle-cell'}
+            className={kinds[c.row]?.[c.col] === 'blank' ? 'toggle-cell' : 'toggle-cell is-box'}
             x={c.rect.x}
             y={c.rect.y}
             width={c.rect.w}
             height={c.rect.h}
-            onClick={() => setTarget({ row: c.row, col: c.col, rect: c.rect })}
+            onClick={() => openMenu(c.row, c.col, c.rect)}
           />
         ))}
       </svg>
@@ -88,6 +98,30 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
               {option(t('prepare.cell.automatic', { kind: kindName(auto) }), current === undefined, () => choose(null))}
               {option(t('prepare.cell.box'), current === 'mark', () => choose('mark'))}
               {option(t('prepare.cell.blank'), current === 'blank', () => choose('blank'))}
+              <Group gap={4} wrap="nowrap" align="flex-start" mt={2}>
+                <TextInput
+                  size="xs"
+                  w={96}
+                  aria-label={t('prepare.cell.pattern')}
+                  value={pattern}
+                  error={!typed}
+                  spellCheck={false}
+                  onChange={(e) => setPattern(e.currentTarget.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && typed && choose({ number: typed })}
+                />
+                <Button
+                  size="xs"
+                  variant={typeof current === 'object' ? 'light' : 'subtle'}
+                  disabled={!typed}
+                  onClick={() => typed && choose({ number: typed })}
+                  style={{ flex: 1 }}
+                >
+                  {t('prepare.cell.number')}
+                </Button>
+              </Group>
+              <Text size="xs" c="dimmed" maw={200}>
+                {t('prepare.cell.patternHint')}
+              </Text>
             </Stack>
           )}
         </Popover.Dropdown>

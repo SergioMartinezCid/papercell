@@ -2,7 +2,7 @@
  * Printable pages as a list of simple shapes in millimetres, so the same page can be rendered as SVG
  * for printing or rasterised directly (e.g. for synthetic tests).
  */
-import { layoutSheet, type PageBox, type PageLayout, type Rect, type SheetLayout, type Template } from './layout';
+import { layoutSheet, type PageLayout, type Rect, type SheetLayout, type Template } from './layout';
 import { markerMatrix, qrMatrix } from './markers';
 import { encodePayload, pagePayload, templateFingerprint, type PagePayload } from './payload';
 import { DEFAULT_FONT_SIZE } from './sheet';
@@ -46,6 +46,11 @@ export interface PrintableSheet {
 
 const GRID_COLOR = '#b7b7b7';
 const BOX_COLOR = '#262626';
+/**
+ * Digit boxes are light, so that the reader can tell the printed outline from the writing and keep the
+ * strokes written over it.
+ */
+const DIGIT_BOX_COLOR = '#b3b3b3';
 const BOX_STROKE = 0.3;
 /** White kept around a box in a coloured cell (mm), so its outline stands out against paper. */
 const BOX_CLEARANCE = 1;
@@ -93,7 +98,10 @@ export function drawPage(template: Template, page: PageLayout, qr: boolean[][]):
   }
   // Boxes stay white, so a cell colour is never read as a mark.
   for (const box of page.boxes) {
-    if (coloured.has(`${box.pageRow},${box.col}`)) shapes.push({ kind: 'rect', ...clearArea(box), fill: '#ffffff' });
+    if (coloured.has(`${box.pageRow},${box.col}`)) shapes.push({ kind: 'rect', ...clearArea(box.cell, box.box), fill: '#ffffff' });
+  }
+  for (const num of page.numbers) {
+    if (coloured.has(`${num.pageRow},${num.col}`)) shapes.push({ kind: 'rect', ...clearArea(num.cell, around(num.boxes)), fill: '#ffffff' });
   }
   if (settings.gridlines) {
     for (const cell of page.cells) shapes.push({ kind: 'frame', ...cell.rect, stroke: GRID_COLOR, width: 0.2 });
@@ -115,6 +123,15 @@ export function drawPage(template: Template, page: PageLayout, qr: boolean[][]):
     });
   }
   for (const box of page.boxes) shapes.push({ kind: 'frame', ...box.box, stroke: BOX_COLOR, width: BOX_STROKE });
+  for (const num of page.numbers) {
+    for (const box of num.boxes) shapes.push({ kind: 'frame', ...box, stroke: DIGIT_BOX_COLOR, width: BOX_STROKE });
+    const sep = num.separator;
+    if (sep) {
+      // The separator sits low, as when written.
+      const rect = { x: sep.x, y: sep.y + sep.h * 0.45, w: sep.w, h: sep.h * 0.55 };
+      shapes.push(textShape(num.field.separator, rect, sep.h * 0.7, true, 'center', DIGIT_BOX_COLOR));
+    }
+  }
 
   CORNERS.forEach((_, corner) => {
     const rect = markerRect(page.format, corner);
@@ -135,17 +152,26 @@ export function drawPage(template: Template, page: PageLayout, qr: boolean[][]):
   return { width: page.format.width, height: page.format.height, shapes };
 }
 
-/** The box and BOX_CLEARANCE around it, within its cell. */
-function clearArea(b: PageBox): Rect {
-  const x = Math.max(b.cell.x, b.box.x - BOX_CLEARANCE);
-  const y = Math.max(b.cell.y, b.box.y - BOX_CLEARANCE);
-  const right = Math.min(b.cell.x + b.cell.w, b.box.x + b.box.w + BOX_CLEARANCE);
-  const bottom = Math.min(b.cell.y + b.cell.h, b.box.y + b.box.h + BOX_CLEARANCE);
+/** A box and BOX_CLEARANCE around it, within its cell. */
+function clearArea(cell: Rect, box: Rect): Rect {
+  const x = Math.max(cell.x, box.x - BOX_CLEARANCE);
+  const y = Math.max(cell.y, box.y - BOX_CLEARANCE);
+  const right = Math.min(cell.x + cell.w, box.x + box.w + BOX_CLEARANCE);
+  const bottom = Math.min(cell.y + cell.h, box.y + box.h + BOX_CLEARANCE);
   return { x, y, w: right - x, h: bottom - y };
 }
 
-function textShape(text: string, rect: Rect, size: number, bold: boolean, align: 'left' | 'center'): Shape {
-  return { kind: 'text', ...rect, text, size, bold, italic: false, align, color: '#000000', pad: 0 };
+/** The smallest rectangle around a row of boxes. */
+function around(boxes: Rect[]): Rect {
+  const x = Math.min(...boxes.map((b) => b.x));
+  const y = Math.min(...boxes.map((b) => b.y));
+  const right = Math.max(...boxes.map((b) => b.x + b.w));
+  const bottom = Math.max(...boxes.map((b) => b.y + b.h));
+  return { x, y, w: right - x, h: bottom - y };
+}
+
+function textShape(text: string, rect: Rect, size: number, bold: boolean, align: 'left' | 'center', color = '#000000'): Shape {
+  return { kind: 'text', ...rect, text, size, bold, italic: false, align, color, pad: 0 };
 }
 
 function isNumeric(text: string): boolean {

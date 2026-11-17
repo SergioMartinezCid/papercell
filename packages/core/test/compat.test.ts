@@ -6,9 +6,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { PageDrawing } from '../src/drawing';
 import { gridCellRect, type Rect } from '../src/layout';
-import { decodePayload, type PagePayload } from '../src/payload';
+import { decodePayload, sourceRowOf, type PagePayload } from '../src/payload';
 import { scanPage } from '../src/scan/scanPage';
-import { boxInCell, PRINT_VERSION } from '../src/spec';
+import { boxInCell, digitBoxes, PRINT_VERSION } from '../src/spec';
 import { drawMark, INKS } from './sim/marks';
 import { photograph, randomPhotoParams } from './sim/photo';
 import { mulberry32 } from './sim/random';
@@ -19,6 +19,8 @@ interface Fixture {
   code: string;
   payload: PagePayload;
   boxes: Array<{ row: number; col: number; box: Rect }>;
+  /** Number fields (from version 2). */
+  numbers?: Array<{ row: number; col: number; boxes: Rect[] }>;
   drawing: PageDrawing;
 }
 
@@ -49,6 +51,25 @@ describe('pages printed by earlier versions', () => {
         expected.forEach((box, i) => {
           for (const k of ['x', 'y', 'w', 'h'] as const) expect(box[k]).toBeCloseTo(fixture.boxes[i].box[k], 6);
         });
+      });
+
+      it('expects the digit boxes of number fields where they were printed', () => {
+        const { payload } = fixture;
+        const byCell = (a: { row: number; col: number }, b: { row: number; col: number }) => a.row - b.row || a.col - b.col;
+        const expected = (payload.numbers ?? [])
+          .map((n) => ({
+            row: sourceRowOf(payload, n.pageRow),
+            col: n.col,
+            boxes: digitBoxes(gridCellRect(payload.grid, n.pageRow, n.col, n.rowSpan, n.colSpan), n.field, payload.version).boxes,
+          }))
+          .sort(byCell);
+        const printed = [...(fixture.numbers ?? [])].sort(byCell);
+        expect(expected.map((n) => [n.row, n.col])).toEqual(printed.map((n) => [n.row, n.col]));
+        expected.forEach((n, i) =>
+          n.boxes.forEach((box, j) => {
+            for (const k of ['x', 'y', 'w', 'h'] as const) expect(box[k]).toBeCloseTo(printed[i].boxes[j][k], 6);
+          }),
+        );
       });
 
       it('scans a photo of the page', () => {
