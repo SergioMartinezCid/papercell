@@ -1,9 +1,9 @@
 import { ActionIcon, Badge, Box, Button, Group, Modal, ScrollArea, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { IconCheck, IconZoomIn, IconZoomOut } from '@tabler/icons-react';
-import { fieldToken, type ReadBox, type ReadNumber, type Rect } from '@papercell/core';
+import type { ReadBox } from '@papercell/core';
 import { useState } from 'react';
 import { useI18n } from '../i18n';
-import { boxKey, checksLeft, isMarked, needsCheck, numberNeedsCheck, numbersOf, numberValue, type ScanItem } from './types';
+import { boxKey, checksLeft, fieldNeedsCheck, fieldsOf, fieldValue, isMarked, needsCheck, type PageField, type ScanItem } from './types';
 
 interface Props {
   item: ScanItem | null;
@@ -18,16 +18,16 @@ const ZOOMS = [1, 1.5, 2, 3];
 export function ReviewModal({ item, mobile, onClose, onDecide, onValue }: Props) {
   const { t } = useI18n();
   const [zoom, setZoom] = useState(0);
-  /** Number fields opened from the page to correct them, besides the doubtful ones. */
+  /** Fields opened from the page to correct them, besides the doubtful ones. */
   const [opened, setOpened] = useState<string[]>([]);
   const scan = item?.scan;
   if (!item || !scan) return <Modal opened={false} onClose={onClose} />;
 
   const doubtful = scan.boxes.filter((b) => b.uncertain);
-  const numbers = numbersOf(item);
-  const shownNumbers = numbers.filter((n) => n.uncertain || opened.includes(boxKey(n.row, n.col)));
+  const fields = fieldsOf(item);
+  const shownFields = fields.filter((f) => f.doubtful || opened.includes(boxKey(f.row, f.col)));
   const remaining = checksLeft(item);
-  const open = (n: ReadNumber) => setOpened((list) => (list.includes(boxKey(n.row, n.col)) ? list : [...list, boxKey(n.row, n.col)]));
+  const open = (f: PageField) => setOpened((list) => (list.includes(boxKey(f.row, f.col)) ? list : [...list, boxKey(f.row, f.col)]));
   const { width, height } = scan.format;
 
   const page = (
@@ -62,8 +62,8 @@ export function ReviewModal({ item, mobile, onClose, onDecide, onValue }: Props)
           {scan.boxes.map((b) => (
             <BoxMark key={boxKey(b.row, b.col)} box={b} marked={isMarked(item, b)} check={needsCheck(item, b)} onClick={() => onDecide(item, b.row, b.col, !isMarked(item, b))} />
           ))}
-          {numbers.map((n) => (
-            <NumberMark key={boxKey(n.row, n.col)} field={n} value={numberValue(item, n)} check={numberNeedsCheck(item, n)} onClick={() => open(n)} />
+          {fields.map((f) => (
+            <FieldMark key={boxKey(f.row, f.col)} field={f} value={fieldValue(item, f)} check={fieldNeedsCheck(item, f)} onClick={() => open(f)} />
           ))}
         </svg>
       </ScrollArea.Autosize>
@@ -75,7 +75,7 @@ export function ReviewModal({ item, mobile, onClose, onDecide, onValue }: Props)
       <Text fw={600}>
         {t('review.toCheck')} ({remaining})
       </Text>
-      {doubtful.length + shownNumbers.length === 0 || remaining === 0 ? (
+      {doubtful.length + shownFields.length === 0 || remaining === 0 ? (
         <Text size="sm" c="dimmed">
           {t('review.allChecked')}
         </Text>
@@ -83,8 +83,8 @@ export function ReviewModal({ item, mobile, onClose, onDecide, onValue }: Props)
       {doubtful.map((b) => (
         <RowCrop key={boxKey(b.row, b.col)} item={item} box={b} onDecide={onDecide} />
       ))}
-      {shownNumbers.map((n) => (
-        <NumberCheck key={boxKey(n.row, n.col)} item={item} field={n} onValue={onValue} />
+      {shownFields.map((f) => (
+        <FieldCheck key={boxKey(f.row, f.col)} item={item} field={f} onValue={onValue} />
       ))}
     </Stack>
   );
@@ -99,7 +99,7 @@ export function ReviewModal({ item, mobile, onClose, onDecide, onValue }: Props)
     >
       {mobile ? (
         <Stack gap="lg">
-          {doubtful.length + shownNumbers.length > 0 && checks}
+          {doubtful.length + shownFields.length > 0 && checks}
           {page}
         </Stack>
       ) : (
@@ -166,11 +166,14 @@ function RowCrop({ item, box, onDecide }: { item: ScanItem; box: ReadBox; onDeci
   );
 }
 
-/** The digit boxes of a number field, with the value read next to them; clicking opens it for correction. */
-function NumberMark({ field, value, check, onClick }: { field: ReadNumber; value: string; check: boolean; onClick: () => void }) {
+/** A field's boxes (or a line's area), with its value next to them; clicking opens it for correction. */
+function FieldMark({ field, value, check, onClick }: { field: PageField; value: string; check: boolean; onClick: () => void }) {
   const color = check ? '#f08c00' : value ? '#2f9e44' : '#868e96';
-  const area = around(field.digits.map((d) => d.box));
+  const { area } = field;
   const pad = 0.6;
+  // Next to the boxes; a line's value goes inside its area, which takes the cell.
+  const inside = field.kind === 'line';
+  const size = Math.min(4, area.h * 0.6);
   return (
     <g style={{ cursor: 'pointer' }} onClick={onClick}>
       <rect
@@ -184,7 +187,16 @@ function NumberMark({ field, value, check, onClick }: { field: ReadNumber; value
         strokeWidth={check ? 0.7 : 0.4}
       />
       {value && (
-        <text x={area.x + area.w + 1.2} y={area.y + area.h / 2} fontSize={Math.min(4, area.h * 0.6)} fill={color} dominantBaseline="central" fontWeight={700}>
+        <text
+          x={inside ? area.x + area.w - 0.8 : area.x + area.w + 1.2}
+          y={inside ? area.y + size / 2 + 0.2 : area.y + area.h / 2}
+          fontSize={size}
+          fill={color}
+          dominantBaseline="central"
+          textAnchor={inside ? 'end' : 'start'}
+          fontWeight={700}
+          style={inside ? { paintOrder: 'stroke', stroke: '#fff', strokeWidth: 0.8 } : undefined}
+        >
           {value}
         </text>
       )}
@@ -192,49 +204,48 @@ function NumberMark({ field, value, check, onClick }: { field: ReadNumber; value
   );
 }
 
-/** A number field to check: its boxes as photographed, and the value to keep. */
-function NumberCheck({ item, field, onValue }: { item: ScanItem; field: ReadNumber; onValue: Props['onValue'] }) {
+/** A field to check: what is written there as photographed, and the value to keep. */
+function FieldCheck({ item, field, onValue }: { item: ScanItem; field: PageField; onValue: Props['onValue'] }) {
   const { t } = useI18n();
   const scan = item.scan!;
-  const area = around(field.digits.map((d) => d.box));
-  const key = boxKey(field.row, field.col);
-  const entered = item.values?.[key];
-  const { digits, decimals, separator } = field.field;
-  const format = new RegExp(`^\\d{1,${digits}}${decimals ? `(\\${separator}\\d{1,${decimals}})?` : ''}$`);
-  const valid = (v: string) => v === '' || format.test(v);
-  const value = entered ?? field.value;
+  const { area } = field;
+  const entered = item.values?.[boxKey(field.row, field.col)];
+  const value = entered ?? field.read;
+  const invalid = field.format && value !== '' && !field.format.test(value);
+  const label =
+    field.kind === 'number' ? t('review.number', { token: field.token }) : field.kind === 'letters' ? t('review.letters', { token: field.token }) : t('review.line');
+  // Writing goes above a line, and past it.
+  const margin = field.kind === 'line' ? 1 : 2;
   return (
     <Box p={6} style={{ border: '1px solid var(--mantine-color-default-border)', borderRadius: 8 }}>
-      <svg viewBox={`${area.x - 2} ${area.y - 1.5} ${area.w + 4} ${area.h + 3}`} style={{ width: '100%', maxHeight: 90, display: 'block', background: '#fff' }}>
+      <svg
+        viewBox={`${area.x - margin} ${area.y - 1.5} ${area.w + 2 * margin} ${area.h + 3}`}
+        style={{ width: '100%', maxHeight: 90, display: 'block', background: '#fff' }}
+      >
         <image href={item.previewUrl} x={0} y={0} width={scan.format.width} height={scan.format.height} preserveAspectRatio="none" />
       </svg>
       <Group gap={6} mt={6} wrap="nowrap" align="flex-start">
         <TextInput
           size="xs"
           style={{ flex: 1 }}
-          aria-label={t('review.number', { token: fieldToken(field.field) })}
-          placeholder={t('review.numberEmpty')}
+          aria-label={label}
+          placeholder={field.kind === 'line' ? t('review.lineEmpty') : t('review.numberEmpty')}
           value={value}
-          error={!valid(value) && t('review.numberInvalid', { token: fieldToken(field.field) })}
-          inputMode="decimal"
-          onChange={(e) => onValue(item, field.row, field.col, e.currentTarget.value.trim())}
+          error={invalid && t('review.numberInvalid', { token: field.token })}
+          inputMode={field.kind === 'number' ? 'decimal' : 'text'}
+          autoCapitalize={field.kind === 'letters' ? 'characters' : 'sentences'}
+          onChange={(e) => onValue(item, field.row, field.col, field.kind === 'number' ? e.currentTarget.value.trim() : e.currentTarget.value)}
         />
         <Button
           size="xs"
-          variant={entered === undefined && field.uncertain ? 'filled' : 'light'}
-          color={entered === undefined && field.uncertain ? 'orange' : 'green'}
+          variant={entered === undefined && field.doubtful ? 'filled' : 'light'}
+          color={entered === undefined && field.doubtful ? 'orange' : 'green'}
           leftSection={<IconCheck size={14} />}
-          onClick={() => onValue(item, field.row, field.col, value)}
+          onClick={() => onValue(item, field.row, field.col, value.trim())}
         >
           {t('review.numberOk')}
         </Button>
       </Group>
     </Box>
   );
-}
-
-function around(boxes: Rect[]): Rect {
-  const x = Math.min(...boxes.map((b) => b.x));
-  const y = Math.min(...boxes.map((b) => b.y));
-  return { x, y, w: Math.max(...boxes.map((b) => b.x + b.w)) - x, h: Math.max(...boxes.map((b) => b.y + b.h)) - y };
 }

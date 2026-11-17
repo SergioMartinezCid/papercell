@@ -1,4 +1,4 @@
-/** Turning read marks and numbers back into spreadsheet cells. */
+/** Turning read marks, numbers and texts back into spreadsheet cells. */
 
 import { intersectRanges, type CellRange } from './sheet';
 
@@ -8,15 +8,16 @@ export interface MarkValue {
   marked: boolean;
 }
 
-export interface NumberValue {
+/** The value of a number field, letter field or writing line. */
+export interface FieldValue {
   row: number;
   col: number;
-  /** The number as text, empty when nothing was written. */
+  /** The number or text, empty when nothing was written. */
   value: string;
 }
 
 export interface OutputOptions {
-  /** `boxes`: the smallest block containing every box and number field. `range`: the whole original range. */
+  /** `boxes`: the smallest block containing every box and field. `range`: the whole original range. */
   shape: 'boxes' | 'range';
   markedValue: string;
   emptyValue: string;
@@ -31,8 +32,8 @@ export interface OutputInput {
   anchor: { row: number; col: number };
   /** Every box read so far. */
   marks: MarkValue[];
-  /** Every number field read so far. */
-  numbers?: NumberValue[];
+  /** Every number field, letter field and writing line read so far. */
+  fields?: FieldValue[];
   /** Text of the source range, when known. Cells that are not boxes are copied from it. */
   texts?: string[][];
 }
@@ -49,7 +50,7 @@ export interface Output {
 
 /** The block that `shape` outputs, relative to the source range. */
 export function outputBlock(input: OutputInput, shape: OutputOptions['shape']): CellRange {
-  const read = [...input.marks, ...(input.numbers ?? [])];
+  const read = [...input.marks, ...(input.fields ?? [])];
   if (shape === 'boxes' && read.length > 0) {
     return {
       top: Math.min(...read.map((m) => m.row)),
@@ -67,7 +68,7 @@ export function outputBlock(input: OutputInput, shape: OutputOptions['shape']): 
  */
 export function buildOutput(input: OutputInput, options: OutputOptions, selection?: CellRange): Output {
   const byCell = new Map(input.marks.map((m) => [`${m.row},${m.col}`, m.marked]));
-  const numbers = new Map((input.numbers ?? []).map((n) => [`${n.row},${n.col}`, n.value]));
+  const fields = new Map((input.fields ?? []).map((f) => [`${f.row},${f.col}`, f.value]));
   const whole = outputBlock(input, 'range');
   const block = (selection && intersectRanges(selection, whole)) ?? outputBlock(input, options.shape);
   let unknownCells = 0;
@@ -76,9 +77,9 @@ export function buildOutput(input: OutputInput, options: OutputOptions, selectio
     const row: string[] = [];
     for (let c = block.left; c <= block.right; c++) {
       const marked = byCell.get(`${r},${c}`);
-      const number = numbers.get(`${r},${c}`);
+      const field = fields.get(`${r},${c}`);
       if (marked !== undefined) row.push(marked ? options.markedValue : options.emptyValue);
-      else if (number !== undefined) row.push(number);
+      else if (field !== undefined) row.push(field);
       else if (input.texts) row.push(input.texts[r]?.[c] ?? '');
       else {
         unknownCells++;

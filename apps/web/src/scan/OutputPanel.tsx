@@ -6,7 +6,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useI18n } from '../i18n';
 import { copyText, downloadText } from '../lib/files';
 import { RangeGrid } from './RangeGrid';
-import { checksLeft, isMarked, numbersOf, numberValue, type ScanItem } from './types';
+import { checksLeft, fieldsOf, fieldValue, isMarked, type ScanItem } from './types';
 
 interface Props {
   pages: ScanItem[];
@@ -33,7 +33,7 @@ export function OutputPanel({ pages, template, fileName, options, onOptions, chi
       sourceCols: payload.sourceCols,
       anchor: { row: payload.anchorRow, col: payload.anchorCol },
       marks: pages.flatMap((p) => p.scan!.boxes.map((b) => ({ row: b.row, col: b.col, marked: isMarked(p, b) }))),
-      numbers: pages.flatMap((p) => numbersOf(p).map((n) => ({ row: n.row, col: n.col, value: numberValue(p, n) }))),
+      fields: pages.flatMap((p) => fieldsOf(p).map((f) => ({ row: f.row, col: f.col, value: fieldValue(p, f) }))),
       texts: template?.sheet.cells.map((row) => row.map((c) => c.text)),
     }),
     [pages, payload, template],
@@ -41,7 +41,7 @@ export function OutputPanel({ pages, template, fileName, options, onOptions, chi
   const output = useMemo(() => buildOutput(input, options, selection ?? undefined), [input, options, selection]);
   const grid = useMemo(() => buildOutput(input, { ...options, shape: 'range' }).values, [input, options]);
   const boxes = useMemo(() => new Map(input.marks.map((m) => [`${m.row},${m.col}`, m.marked])), [input]);
-  const numberCells = useMemo(() => new Set(input.numbers.map((n) => `${n.row},${n.col}`)), [input]);
+  const fieldCells = useMemo(() => new Set(input.fields.map((f) => `${f.row},${f.col}`)), [input]);
   const cell = cellAddress(output.topLeft.row, output.topLeft.col);
 
   // The cells field shows spreadsheet addresses; selections are relative to the range.
@@ -139,7 +139,7 @@ export function OutputPanel({ pages, template, fileName, options, onOptions, chi
         <RangeGrid
           values={grid}
           boxes={boxes}
-          numbers={numberCells}
+          fields={fieldCells}
           block={output.block}
           anchor={anchor}
           label={t('output.preview')}

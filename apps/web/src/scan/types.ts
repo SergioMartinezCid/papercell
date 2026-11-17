@@ -1,4 +1,4 @@
-import type { PageScan, ReadNumber, ScanError } from '@papercell/core';
+import { fieldToken, lettersToken, type PageScan, type Rect, type ScanError } from '@papercell/core';
 
 /** A page scan without the straightened image (sent separately as a JPEG). */
 export type ScanSummary = Omit<PageScan, 'page'>;
@@ -29,7 +29,7 @@ export interface ScanItem {
   thumbUrl?: string;
   /** Decisions made while reviewing, keyed by `row,col`: true = marked. */
   decisions: Record<string, boolean>;
-  /** Number values entered or confirmed while reviewing, keyed by `row,col`. */
+  /** Values of number fields, letter fields and writing lines entered or confirmed while reviewing, keyed by `row,col`. */
   values?: Record<string, string>;
 }
 
@@ -46,21 +46,71 @@ export function needsCheck(item: ScanItem, box: { row: number; col: number; unce
   return box.uncertain && item.decisions[boxKey(box.row, box.col)] === undefined;
 }
 
-/** Number fields of a page (none on pages scanned before they existed). */
-export function numbersOf(item: ScanItem): ReadNumber[] {
-  return item.scan?.numbers ?? [];
+/** A number field, letter field or writing line of a page: what is filled in there is text either way. */
+export interface PageField {
+  row: number;
+  col: number;
+  kind: 'number' | 'letters' | 'line';
+  /** Its token, e.g. `[##,#]`. */
+  token: string;
+  /** Its boxes on the page (none for a line). */
+  boxes: Rect[];
+  /** Where it is on the page: around its boxes, or where a line's writing was looked for. */
+  area: Rect;
+  /** What was read: empty for a line, whose writing is typed in. */
+  read: string;
+  /** A person must check it: something read is doubtful, or a line has writing to type in. */
+  doubtful: boolean;
+  /** For number fields: what a value must look like. */
+  format?: RegExp;
 }
 
-/** Final value of a number field: the reviewer's, otherwise what was read. */
-export function numberValue(item: ScanItem, n: ReadNumber): string {
-  return item.values?.[boxKey(n.row, n.col)] ?? n.value;
+/** Number fields, letter fields and writing lines of a page (pages scanned before they existed have none). */
+export function fieldsOf(item: ScanItem): PageField[] {
+  const scan = item.scan;
+  if (!scan) return [];
+  const numbers = (scan.numbers ?? []).map((n): PageField => {
+    const { digits, decimals, separator } = n.field;
+    const boxes = n.digits.map((d) => d.box);
+    return {
+      row: n.row,
+      col: n.col,
+      kind: 'number',
+      token: fieldToken(n.field),
+      boxes,
+      area: around(boxes),
+      read: n.value,
+      doubtful: n.uncertain,
+      format: new RegExp(`^\\d{1,${digits}}${decimals ? `(\\${separator}\\d{1,${decimals}})?` : ''}$`),
+    };
+  });
+  const letters = (scan.letters ?? []).map((l): PageField => {
+    const boxes = l.letters.map((d) => d.box);
+    return { row: l.row, col: l.col, kind: 'letters', token: lettersToken(l.count), boxes, area: around(boxes), read: l.value, doubtful: l.uncertain };
+  });
+  const lines = (scan.lines ?? []).map(
+    (l): PageField => ({ row: l.row, col: l.col, kind: 'line', token: '[...]', boxes: [], area: l.area, read: '', doubtful: l.written || l.uncertain }),
+  );
+  return [...numbers, ...letters, ...lines];
 }
 
-export function numberNeedsCheck(item: ScanItem, n: ReadNumber): boolean {
-  return n.uncertain && item.values?.[boxKey(n.row, n.col)] === undefined;
+/** Final value of a field: the reviewer's, otherwise what was read. */
+export function fieldValue(item: ScanItem, f: PageField): string {
+  return (item.values?.[boxKey(f.row, f.col)] ?? f.read).trim();
 }
 
-/** Boxes and number fields still to check on a page. */
+export function fieldNeedsCheck(item: ScanItem, f: PageField): boolean {
+  return f.doubtful && item.values?.[boxKey(f.row, f.col)] === undefined;
+}
+
+/** Boxes and fields still to check on a page. */
 export function checksLeft(item: ScanItem): number {
-  return (item.scan?.boxes.filter((b) => needsCheck(item, b)).length ?? 0) + numbersOf(item).filter((n) => numberNeedsCheck(item, n)).length;
+  return (item.scan?.boxes.filter((b) => needsCheck(item, b)).length ?? 0) + fieldsOf(item).filter((f) => fieldNeedsCheck(item, f)).length;
+}
+
+/** The smallest rectangle around some boxes. */
+export function around(boxes: Rect[]): Rect {
+  const x = Math.min(...boxes.map((b) => b.x));
+  const y = Math.min(...boxes.map((b) => b.y));
+  return { x, y, w: Math.max(...boxes.map((b) => b.x + b.w)) - x, h: Math.max(...boxes.map((b) => b.y + b.h)) - y };
 }

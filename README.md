@@ -1,13 +1,13 @@
 # Papercell
 
-Turn a spreadsheet range into a printable sheet, mark it or write numbers on it by hand, photograph it, and get the results back as cells.
+Turn a spreadsheet range into a printable sheet, mark it or write numbers and words on it by hand, photograph it, and get the results back as cells.
 
 1. **Prepare** (computer): copy a range in Google Sheets, Excel or LibreOffice and paste it, or upload an `.xlsx`, `.csv` or `.tsv` file. Cells with text are printed as they are; empty cells become boxes (see [cell kinds](#cell-kinds) for numbers, letters, writing lines and blank cells). Print.
-2. **Mark** the boxes on paper by filling them in, and write numbers one digit per box.
-3. **Scan** (phone or computer): take a photo, or drop, paste or choose an image. Papercell finds the page, reads every box and number and flags the ones it is unsure about for a quick check.
+2. **Mark** the boxes on paper by filling them in, write numbers one digit per box and capital letters one per box, and anything on writing lines.
+3. **Scan** (phone or computer): take a photo, or drop, paste or choose an image. Papercell finds the page, reads every box, number and letter and flags the ones it is unsure about for a quick check. What is written on writing lines is shown to be typed in.
 4. **Paste** the result back into the spreadsheet: copy it (tab-separated, ready to paste) or download a CSV.
 
-Boxes are read by optical mark recognition (OMR): deciding whether a known box is filled in is very reliable. Numbers are read digit by digit, each in its own printed box, which is much more reliable than reading free handwriting.
+Boxes are read by optical mark recognition (OMR): deciding whether a known box is filled in is very reliable. Numbers and letters are read one character at a time, each in its own printed box, which is much more reliable than reading free handwriting. Free handwriting is not read: a small model that runs in the browser cannot read it reliably, so writing lines only tell whether something is written, and show it for a person to type in.
 
 Everything runs in the browser. Photos and sheets never leave the device.
 
@@ -23,6 +23,8 @@ Scanning a photo:
 4. Snap each box to its printed outline. This absorbs paper curl, and boxes that cannot be snapped borrow the shift of their neighbours.
 5. Measure the ink inside every box and split marked from empty per page. Values close to the threshold, and boxes that stand out from the empty ones without reaching it, are flagged for review rather than guessed.
 6. Read number fields. Digit boxes are printed light grey, so the writing can be told from them. Each field is found by its outlines: it is moved to where the outlines of all its boxes line up with thin lines on the page (a cell's gridline fits one side of a row of boxes, not all four). Each box is then read with some space around it, keeping only ink clearly darker than the paper and the outline, in strokes of a real size centred on the box; strokes lying along the outline are kept when they are much darker than it. Digits written over the outline keep their strokes. Whether a box is empty is decided per page from that ink; a written box is normalized like the MNIST digits (fit in 20×20, centred by mass in 28×28) and classified by a small convolutional network (`src/scan/digits.ts`). Digits read with less than 95% confidence, faint ones and gaps between digits are flagged for review.
+7. Read letter fields the same way, sharing the split between empty and written boxes with the digits, with a network for capital letters and digits (`src/scan/letters.ts`). Empty boxes between letters become one space.
+8. Look for writing on writing lines: strokes of a real size in the cell, clearly darker than the paper and the printed lines, that are not the printed lines themselves. Lines with writing, or where that is doubtful, are shown for review, to type what is written.
 
 ## Printed pages keep working
 
@@ -56,6 +58,12 @@ The network is trained by `packages/core/scripts/train_digits.py` (Python 3, num
 
 `pnpm bench:numbers` measures reading on simulated photos, with digits drawn with pen strokes and, once MNIST is downloaded, with real handwritten digits from the MNIST test set, which the network never saw. With those, in reasonable photos about 2% of the fields come out wrong, almost all of them flagged for review (under 1% are not); in poorly lit, blurry photos, many more values are flagged.
 
+### The letter reader
+
+Letter fields are read like number fields, with a network of the same shape, a little wider, that tells apart the capitals A–Z, Ñ and the digits. It is trained by `packages/core/scripts/train_letters.py` on the capitals and digits of [EMNIST](https://www.nist.gov/itl/products-and-services/emnist-dataset) (G. Cohen, S. Afshar, J. Tapson, A. van Schaik, 2017; from NIST Special Database 19), with the same distortions. EMNIST has no Ñ and no accents: Ñ is made by writing a tilde over its Ns, and some vowels get an accent so that accented capitals read as the plain letter. A fifth of the training characters are drawn with pen strokes. The weights (int8, about 170 KB) are generated into `src/scan/letterModel.ts`. Letter fields mostly hold letters, so digits count as less likely than the network says: O is not taken for 0, nor I for 1, unless the writing clearly is a digit.
+
+`pnpm bench:text` measures letter fields and writing lines on simulated photos, with letters drawn with pen strokes and, once EMNIST is downloaded, real handwritten capitals from its test set. With those, in reasonable photos about 3% of the letters (7% of six-letter fields) come out wrong, all of them flagged; a third of the fields are flagged, as one doubtful letter is enough. In poorly lit, blurry photos, about half are flagged and a few mistakes are not. Whether a writing line has something written on it was right on every simulated photo.
+
 ## Repository layout
 
 | Path | What |
@@ -78,6 +86,7 @@ pnpm build          # production build in apps/web/dist
 pnpm preview        # serve the production build
 pnpm bench:backgrounds [photos]   # do cell background colours affect reading?
 pnpm bench:numbers [photos]       # how well are handwritten numbers read?
+pnpm bench:text [photos]          # how well are letters and writing lines read?
 ```
 
 ### Phones and HTTPS

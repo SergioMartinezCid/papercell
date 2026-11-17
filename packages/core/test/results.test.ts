@@ -65,12 +65,12 @@ describe('buildOutput', () => {
     expect(out.unknownCells).toBe(0);
   });
 
-  it('outputs number fields with the boxes', () => {
-    const numbers = [
+  it('outputs number and text fields with the boxes', () => {
+    const fields = [
       { row: 1, col: 0, value: '7,5' },
       { row: 2, col: 0, value: '' },
     ];
-    const out = buildOutput({ ...base, numbers }, { shape: 'boxes', markedValue: 'x', emptyValue: '-' });
+    const out = buildOutput({ ...base, fields }, { shape: 'boxes', markedValue: 'x', emptyValue: '-' });
     expect(out.values).toEqual([
       ['7,5', 'x', '-'],
       ['', '-', 'x'],

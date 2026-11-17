@@ -122,6 +122,11 @@ describe('pages printed by earlier versions', () => {
             expect(Math.hypot(d.box.x - at.x - shift.x, d.box.y - at.y - shift.y)).toBeLessThan(0.8);
           });
         }
+        // Empty letter fields and writing lines read as empty.
+        expect(outcome.scan.letters).toHaveLength(fixture.letters?.length ?? 0);
+        for (const l of outcome.scan.letters) expect(l.value).toBe('');
+        expect(outcome.scan.lines).toHaveLength(fixture.lines?.length ?? 0);
+        for (const l of outcome.scan.lines) expect([l.written, l.uncertain]).toEqual([false, false]);
       });
     });
   }

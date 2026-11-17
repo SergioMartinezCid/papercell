@@ -6,7 +6,8 @@ import { chooseThreshold, classify, type Threshold } from './classify';
 import { detectMarkers, fitPageFrame, readPageCode } from './detect';
 import { multiply, scaling } from './homography';
 import { blockMean, darkestChannel, toGray, type GrayImage, type RgbaImage } from './image';
-import { readNumbers, type ReadNumber } from './numbers';
+import { readFields, type ReadLetters, type ReadNumber } from './fields';
+import { readLines, type ReadLine } from './lines';
 import { readBoxes, type BoxReading, type BoxTarget } from './read';
 import { flattenIllumination, pixelsPerMm, warpRegion } from './warp';
 
@@ -26,6 +27,9 @@ export interface PageScan {
   boxes: ReadBox[];
   /** Number fields (pages printed with format 2 or later). */
   numbers: ReadNumber[];
+  /** Letter fields and writing lines (pages printed with format 3 or later). */
+  letters: ReadLetters[];
+  lines: ReadLine[];
   threshold: Threshold;
   /** Straightened page (darkest colour channel) with flattened lighting, sampled at `pxPerMm` from the paper's top-left corner. */
   page: GrayImage;
@@ -86,7 +90,8 @@ export function scanPage(image: RgbaImage, options: ScanOptions = {}): ScanOutco
   const readings = readBoxes(page, pxPerMm, targets);
   const threshold = chooseThreshold(readings.map((r) => r.fill));
   const boxes = readings.map((r) => ({ ...r, ...classify(r.fill, threshold) }));
-  const numbers = readNumbers(page, pxPerMm, payload, readings);
+  const { numbers, letters } = readFields(page, pxPerMm, payload, readings);
+  const lines = readLines(page, pxPerMm, payload, readings);
 
   return {
     ok: true,
@@ -95,6 +100,8 @@ export function scanPage(image: RgbaImage, options: ScanOptions = {}): ScanOutco
       format,
       boxes,
       numbers,
+      letters,
+      lines,
       threshold,
       page,
       pxPerMm,

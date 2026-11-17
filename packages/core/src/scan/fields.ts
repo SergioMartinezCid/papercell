@@ -1,16 +1,17 @@
 /**
- * Reading the numbers written in number fields, one digit per box. Digit boxes are printed light, so that the
- * writing can be told from them: each box is read with some space around it, keeping only ink clearly darker
- * than the paper (and, near the outline, than the outline) that forms strokes of a real size centred on the
- * box. Strokes written over the outline or past it are kept. What is left decides whether the box is empty
- * and, if not, is read as a digit (see `digits.ts`).
+ * Reading what is written in number and letter fields, one character per box. These boxes are printed light,
+ * so that the writing can be told from them: each box is read with some space around it, keeping only ink
+ * clearly darker than the paper (and, near the outline, than the outline) that forms strokes of a real size
+ * centred on the box. Strokes written over the outline or past it are kept. What is left decides whether the
+ * box is empty and, if not, is read as a digit (see `digits.ts`) or a letter (see `letters.ts`).
  */
 import { gridCellRect, type Rect } from '../layout';
 import { sourceRowOf, type PagePayload } from '../payload';
-import { digitBoxes } from '../spec';
+import { digitBoxes, letterBoxes } from '../spec';
 import type { NumberField } from '../tokens';
 import { classifyDigit, normalizeDigit } from './digits';
 import { inkBlobs, type GrayImage, type Point } from './image';
+import { classifyLetter, LETTER_CLASSES } from './letters';
 
 export interface DigitRead {
   /** The box, where it is expected on the page: where it was printed, moved like the checkboxes around it. */
@@ -36,6 +37,36 @@ export interface ReadNumber {
   uncertain: boolean;
 }
 
+export interface LetterRead {
+  /** The box, where it is expected on the page (see `DigitRead.box`). */
+  box: Rect;
+  /** See `DigitRead.fill`. */
+  fill: number;
+  /** The letter (or digit) read, or null for an empty box. */
+  letter: string | null;
+  /** Probability of `letter` (for empty boxes, how surely the box is empty). */
+  confidence: number;
+}
+
+export interface ReadLetters {
+  row: number;
+  col: number;
+  pageRow: number;
+  cell: Rect;
+  /** Boxes in the field. */
+  count: number;
+  letters: LetterRead[];
+  /** The text read, with one space for empty boxes between letters; empty when nothing is written. */
+  value: string;
+  /** Some letter is doubtful: a person should check the value. */
+  uncertain: boolean;
+}
+
+export interface ReadFields {
+  numbers: ReadNumber[];
+  letters: ReadLetters[];
+}
+
 /**
  * Empty and written digit boxes are told apart per page, at the widest gap between their fills (see
  * `DigitRead.fill`): empty boxes have none or nearly none, below SPLIT_LOW, and written ones some, above
@@ -49,7 +80,7 @@ const MIN_GAP = 0.02;
 const FALLBACK = 0.02;
 const EMPTY_SPREAD = 0.015;
 const DOUBT = 0.01;
-/** Digits read with less probability than this are flagged. */
+/** Digits and letters read with less probability than this are flagged. */
 const MIN_CONFIDENCE = 0.95;
 /**
  * Space around a digit box read with it (mm), so that strokes written over or past the outline are kept;
@@ -85,7 +116,7 @@ export interface Anchor {
   shift: Point;
 }
 
-/** How many nearby anchors give the shift of a digit box, and how near they must be (mm). */
+/** How many nearby anchors give the shift of a box, and how near they must be (mm). */
 const ANCHORS = 6;
 const ANCHOR_RANGE = 50;
 
@@ -104,16 +135,21 @@ const SNAP_MIN = 0.03;
 const SNAP_GAIN = 0.02;
 
 /**
- * Reads the number fields of a page. Digit boxes are light, so they are found by their outlines as a whole
- * field (see SNAP_RANGE), starting from the shift of nearby checkboxes (`anchors`), if any, and the crop
- * around each box leaves room for the rest.
+ * Reads the number and letter fields of a page. Their boxes are light, so they are found by their outlines
+ * as a whole field (see SNAP_RANGE), starting from the shift of nearby checkboxes (`anchors`), if any, and
+ * the crop around each box leaves room for the rest.
  */
-export function readNumbers(page: GrayImage, pxPerMm: number, payload: PagePayload, anchors: Anchor[] = []): ReadNumber[] {
-  const fields = (payload.numbers ?? []).map((n) => {
+export function readFields(page: GrayImage, pxPerMm: number, payload: PagePayload, anchors: Anchor[] = []): ReadFields {
+  const numbers = (payload.numbers ?? []).map((n) => {
     const cell = gridCellRect(payload.grid, n.pageRow, n.col, n.rowSpan, n.colSpan);
     return { ...n, row: sourceRowOf(payload, n.pageRow), cell, ...digitBoxes(cell, n.field, payload.version) };
   });
-  if (fields.length === 0) return [];
+  const letters = (payload.letters ?? []).map((l) => {
+    const cell = gridCellRect(payload.grid, l.pageRow, l.col, l.rowSpan, l.colSpan);
+    return { ...l, row: sourceRowOf(payload, l.pageRow), cell, boxes: letterBoxes(cell, l.count, payload.version), separator: null };
+  });
+  const fields = [...numbers, ...letters];
+  if (fields.length === 0) return { numbers: [], letters: [] };
   const outline = quantile(
     fields.flatMap((f) => f.boxes.flatMap((b) => outlineSamples(page, pxPerMm, b))),
     0.5,
@@ -143,11 +179,24 @@ export function readNumbers(page: GrayImage, pxPerMm: number, payload: PagePaylo
       return { box, fill, ink, w, h };
     });
   });
+  // Digits and letters are written alike, so their boxes share the line between empty and written.
   const written = writtenFrom(crops.flat().map((c) => c.fill));
-  return fields.map((f, i) => {
-    const digits = crops[i].map((c) => readDigit(c, written));
-    return { row: f.row, col: f.col, pageRow: f.pageRow, cell: f.cell, field: f.field, digits, ...numberValue(f.field, digits) };
-  });
+  return {
+    numbers: numbers.map((f, i) => {
+      const digits = crops[i].map((c) => {
+        const { index, ...read } = readChar(c, written, classifyDigit);
+        return { ...read, digit: index };
+      });
+      return { row: f.row, col: f.col, pageRow: f.pageRow, cell: f.cell, field: f.field, digits, ...numberValue(f.field, digits) };
+    }),
+    letters: letters.map((f, i) => {
+      const read = crops[numbers.length + i].map((c) => {
+        const { index, ...rest } = readChar(c, written, classifyLetter);
+        return { ...rest, letter: index === null ? null : LETTER_CLASSES[index] };
+      });
+      return { row: f.row, col: f.col, pageRow: f.pageRow, cell: f.cell, count: f.count, letters: read, ...lettersValue(read) };
+    }),
+  };
 }
 
 /**
@@ -179,7 +228,7 @@ function quantile(values: number[], q: number): number {
   return s[Math.min(s.length - 1, Math.floor(s.length * q))];
 }
 
-/** The fill from which a digit box counts as written, for the digit boxes of one page (see SPLIT_LOW). */
+/** The fill from which a box counts as written, for the digit and letter boxes of one page (see SPLIT_LOW). */
 export function writtenFrom(fills: number[]): number {
   const s = [...fills].sort((a, b) => a - b);
   let best = { gap: 0, at: FALLBACK };
@@ -231,7 +280,7 @@ function around(boxes: Rect[]): Rect {
 }
 
 /** Median shift of the nearest anchors, or none. */
-function shiftNear(anchors: Anchor[], box: Rect): Point {
+export function shiftNear(anchors: Anchor[], box: Rect): Point {
   const cx = box.x + box.w / 2;
   const cy = box.y + box.h / 2;
   const near = anchors
@@ -249,12 +298,17 @@ function median(values: number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-function readDigit({ box, fill, ink, w, h }: { box: Rect; fill: number; ink: Float32Array; w: number; h: number }, written: number): DigitRead {
+/** What is written in a box, as the index of the most likely class of `classify`, or null when empty. */
+function readChar(
+  { box, fill, ink, w, h }: { box: Rect; fill: number; ink: Float32Array; w: number; h: number },
+  written: number,
+  classify: (input: Float32Array) => number[],
+): { box: Rect; fill: number; index: number | null; confidence: number } {
   const doubtful = Math.abs(fill - written) < DOUBT;
-  if (fill < written) return { box, fill, digit: null, confidence: doubtful ? 0.5 : 1 };
-  const probabilities = classifyDigit(normalizeDigit(ink, w, h));
-  const digit = probabilities.indexOf(Math.max(...probabilities));
-  return { box, fill, digit, confidence: doubtful ? Math.min(0.5, probabilities[digit]) : probabilities[digit] };
+  if (fill < written) return { box, fill, index: null, confidence: doubtful ? 0.5 : 1 };
+  const probabilities = classify(normalizeDigit(ink, w, h));
+  const index = probabilities.indexOf(Math.max(...probabilities));
+  return { box, fill, index, confidence: doubtful ? Math.min(0.5, probabilities[index]) : probabilities[index] };
 }
 
 /**
@@ -345,3 +399,18 @@ function numberValue(field: NumberField, digits: DigitRead[]): { value: string; 
   const value = decimals ? `${clean(whole) || '0'}${field.separator}${clean(decimals)}` : clean(whole);
   return { value, uncertain };
 }
+
+/**
+ * The text of a letter field: its letters, with empty boxes between them as one space. Doubtful when a letter
+ * is.
+ */
+function lettersValue(letters: LetterRead[]): { value: string; uncertain: boolean } {
+  const value = letters
+    .map((l) => l.letter ?? ' ')
+    .join('')
+    .trim()
+    .replace(/ +/g, ' ');
+  return { value, uncertain: letters.some((l) => l.confidence < MIN_CONFIDENCE) };
+}
+
+

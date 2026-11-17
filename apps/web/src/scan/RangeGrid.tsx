@@ -7,8 +7,8 @@ interface Props {
   values: string[][];
   /** Boxes by `row,col`: true = marked. */
   boxes: Map<string, boolean>;
-  /** Number fields, by `row,col`. */
-  numbers?: Set<string>;
+  /** Number fields, letter fields and writing lines, by `row,col`. */
+  fields?: Set<string>;
   /** Highlighted block, relative to the range. */
   block: CellRange;
   /** Spreadsheet position of the range, for the row and column headers. */
@@ -29,7 +29,7 @@ interface Point {
  * The scanned range as a small spreadsheet. With a mouse, drag (or shift-click) to select a block; on touch
  * screens, tap the first and the last cell, so that scrolling still works. Headers select whole rows or columns.
  */
-export function RangeGrid({ values, boxes, numbers, block, anchor, label, onSelect, maxHeight = 320 }: Props) {
+export function RangeGrid({ values, boxes, fields, block, anchor, label, onSelect, maxHeight = 320 }: Props) {
   const rows = values.length;
   const cols = values[0]?.length ?? 0;
   const start = useRef<Point | null>(null);
@@ -110,8 +110,8 @@ export function RangeGrid({ values, boxes, numbers, block, anchor, label, onSele
               </Table.Th>
               {row.map((v, c) => {
                 const box = boxes.get(`${r},${c}`);
-                const number = numbers?.has(`${r},${c}`);
-                const classes = [inRows(r) && inCols(c) && 'in-block', (box !== undefined || number) && 'is-box', box && 'is-marked'];
+                const field = fields?.has(`${r},${c}`);
+                const classes = [inRows(r) && inCols(c) && 'in-block', (box !== undefined || field) && 'is-box', box && 'is-marked'];
                 return (
                   <Table.Td key={c} data-pos={`${r},${c}`} className={classes.filter(Boolean).join(' ')}>
                     {v}

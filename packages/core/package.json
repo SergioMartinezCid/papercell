@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json",
     "bench:backgrounds": "tsx bench/backgrounds.ts",
-    "bench:numbers": "tsx bench/numbers.ts"
+    "bench:numbers": "tsx bench/numbers.ts",
+    "bench:text": "tsx bench/text.ts"
   },
   "dependencies": {
     "jsqr": "1.4.0",

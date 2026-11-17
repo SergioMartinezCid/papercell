@@ -7,7 +7,7 @@ import { INKS } from './sim/marks';
 import { photograph, randomPhotoParams } from './sim/photo';
 import { mulberry32 } from './sim/random';
 import { fillRect, rasterize } from './sim/raster';
-import { numberTemplate, runCase, runNumberCase, sampleTemplate } from './sim/scenario';
+import { numberTemplate, runCase, runNumberCase, runTextCase, sampleTemplate, textTemplate } from './sim/scenario';
 
 describe('solveHomography', () => {
   it('recovers a perspective transform and its inverse', () => {
@@ -114,5 +114,41 @@ describe('number fields on synthetic photos', () => {
     expect(r.error).toBeUndefined();
     expect(r.wrong).toBe(0);
     expect(r.uncertain).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('letter fields and writing lines on synthetic photos', () => {
+  const template = textTemplate({ rows: 20, tokens: ['[______]', '[...]'] });
+
+  // A field holds several letters, so one doubtful letter is enough to flag it.
+  it.each([111, 112, 113])('reads an easy photo with no silent mistakes (seed %i)', (seed) => {
+    const r = runTextCase({ template, seed, difficulty: 'easy' });
+    expect(r.error).toBeUndefined();
+    expect(r.fields).toBe(20);
+    expect(r.silentWrong).toBe(0);
+    expect(r.wrong).toBeLessThanOrEqual(1);
+    expect(r.uncertain).toBeLessThanOrEqual(8);
+    expect(r.lines).toBe(20);
+    expect([r.missed, r.falseWritten, r.lineFlagged]).toEqual([0, 0, 0]);
+  });
+
+  it.each([114, 115])('reads letters written in red with no silent mistakes (seed %i)', (seed) => {
+    const r = runTextCase({ template, seed, difficulty: 'easy', ink: INKS.red });
+    expect(r.error).toBeUndefined();
+    expect(r.silentWrong).toBe(0);
+  });
+
+  it('tells written lines from empty ones in a hard photo', () => {
+    const r = runTextCase({ template, seed: 121, difficulty: 'hard' });
+    expect(r.error).toBeUndefined();
+    expect([r.missed, r.falseWritten, r.lineFlagged]).toEqual([0, 0, 0]);
+  });
+
+  it.each([131, 133])('reads empty letter fields and lines as empty, even in a hard photo (seed %i)', (seed) => {
+    const r = runTextCase({ template, seed, difficulty: 'hard', written: 0 });
+    expect(r.error).toBeUndefined();
+    expect(r.wrong).toBe(0);
+    expect(r.uncertain).toBe(0);
+    expect([r.falseWritten, r.lineFlagged]).toEqual([0, 0]);
   });
 });

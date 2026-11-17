@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, type LayoutSettings, type Template } from '../../src/
 import { scanPage } from '../../src/scan/scanPage';
 import { normalizeSheet, type SheetCell } from '../../src/sheet';
 import type { Rect } from '../../src/layout';
-import { drawDigit } from './handwriting';
+import { drawDigit, drawLetter, drawText } from './handwriting';
 import { drawMark, drawSpeck, INKS, type MarkStyle } from './marks';
 import type { RgbaImage } from '../../src/scan/image';
 import { photograph, randomPhotoParams, type PhotoParams } from './photo';
@@ -250,4 +250,126 @@ export function textTemplate(o: { rows?: number; tokens?: string[]; settings?: P
     settings: { ...DEFAULT_SETTINGS, title: 'Text', ...o.settings },
     anchor: { row: 0, col: 0 },
   };
+}
+
+export type LetterWriter = (img: RgbImage, box: Rect, letter: string, ink: Rgb, p: number, rng: Rng) => void;
+
+export interface TextCaseOptions {
+  template: Template;
+  seed: number;
+  difficulty: 'easy' | 'hard';
+  ink?: Rgb;
+  /** How letters are written in letter boxes; stroke letters by default. */
+  writer?: LetterWriter;
+  /** Characters written in letter fields (capitals by default). */
+  alphabet?: string;
+  /** Share of fields and lines with something written (0.8 by default). */
+  written?: number;
+  renderPxPerMm?: number;
+  photo?: Partial<PhotoParams>;
+  onPhoto?: (photo: RgbaImage, params: PhotoParams) => void;
+}
+
+export interface TextCaseResult {
+  ok: boolean;
+  error?: string;
+  /** Letter fields: read, read wrongly, wrongly and not flagged, flagged. */
+  fields: number;
+  wrong: number;
+  silentWrong: number;
+  uncertain: number;
+  /** Letters (boxes) read wrongly: where, what was written and what was read (a space for an empty box). */
+  letterMistakes: Array<{ row: number; col: number; box: number; written: string; read: string; confidence: number }>;
+  letters: number;
+  /** Writing lines: read, written ones read as empty, empty ones read as written, flagged. */
+  lines: number;
+  missed: number;
+  falseWritten: number;
+  lineFlagged: number;
+  /** Ink found on written and on empty lines (mm²). */
+  writtenInk: number[];
+  emptyInk: number[];
+}
+
+const CAPITALS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/** Writes text in every letter field and on every writing line of the first page, photographs it and compares what is read. */
+export function runTextCase(c: TextCaseOptions): TextCaseResult {
+  const rng = mulberry32(c.seed);
+  const p = c.renderPxPerMm ?? 8;
+  const page = buildPrintable(c.template).pages[0];
+  const image = rasterize(page.drawing, p);
+  const ink = c.ink ?? pick(rng, [INKS.black, INKS.blue]);
+  const write = c.writer ?? drawLetter;
+  const alphabet = c.alphabet ?? CAPITALS;
+  const share = c.written ?? 0.8;
+  const truth = new Map<string, string>();
+  for (const f of page.layout.letters) {
+    let text = '';
+    if (rng() < share) {
+      const length = 1 + Math.floor(rng() * f.count);
+      for (let i = 0; i < length; i++) {
+        const ch = alphabet[Math.floor(rng() * alphabet.length)];
+        text += ch;
+        write(image, f.boxes[i], ch, ink, p, rng);
+      }
+    }
+    truth.set(`${f.row},${f.col}`, text);
+  }
+  const lineTruth = new Map<string, boolean>();
+  for (const l of page.layout.lines) {
+    const written = rng() < share;
+    if (written) {
+      const words = Array.from({ length: 1 + Math.floor(rng() * 3) }, () =>
+        Array.from({ length: 2 + Math.floor(rng() * 6) }, () => CAPITALS[Math.floor(rng() * CAPITALS.length)]).join(''),
+      );
+      drawText(image, l.cell, l.line, words.join(' '), ink, p, rng);
+    }
+    lineTruth.set(`${l.row},${l.col}`, written);
+  }
+  const params = { ...randomPhotoParams(rng, c.difficulty), ...c.photo };
+  const photo = photograph(image, p, params, rng);
+  c.onPhoto?.(photo, params);
+  const outcome = scanPage(photo);
+  const result: TextCaseResult = {
+    ok: outcome.ok,
+    fields: 0,
+    wrong: 0,
+    silentWrong: 0,
+    uncertain: 0,
+    letterMistakes: [],
+    letters: 0,
+    lines: 0,
+    missed: 0,
+    falseWritten: 0,
+    lineFlagged: 0,
+    writtenInk: [],
+    emptyInk: [],
+  };
+  if (!outcome.ok) return { ...result, error: outcome.error };
+  for (const f of outcome.scan.letters) {
+    result.fields++;
+    const written = truth.get(`${f.row},${f.col}`) ?? '';
+    if (f.uncertain) result.uncertain++;
+    if (f.value !== written) {
+      result.wrong++;
+      if (!f.uncertain) result.silentWrong++;
+    }
+    f.letters.forEach((l, i) => {
+      const ch = written[i] ?? null;
+      if (ch !== null) result.letters++;
+      if (l.letter !== ch) {
+        result.letterMistakes.push({ row: f.row, col: f.col, box: i, written: ch ?? ' ', read: l.letter ?? ' ', confidence: Math.round(l.confidence * 100) / 100 });
+      }
+    });
+  }
+  for (const l of outcome.scan.lines) {
+    result.lines++;
+    const written = lineTruth.get(`${l.row},${l.col}`) ?? false;
+    (written ? result.writtenInk : result.emptyInk).push(l.ink);
+    if (l.uncertain) result.lineFlagged++;
+    else if (written && !l.written) result.missed++;
+    else if (!written && l.written) result.falseWritten++;
+  }
+  return result;
 }
