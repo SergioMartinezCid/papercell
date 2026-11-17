@@ -6,7 +6,7 @@ export const en = {
 
   'prepare.empty.title': 'Start from a spreadsheet',
   'prepare.empty.body':
-    'Select a range in Google Sheets, Excel or LibreOffice, copy it and paste it here. Cells with text are printed; empty cells become boxes to mark.',
+    'Select a range in Google Sheets, Excel or LibreOffice, copy it and paste it here. Cells with text are printed; empty cells become boxes to mark. Write [-] in a cell, or in its note, to leave it blank.',
   'prepare.mobileNote': 'You can prepare sheets on a phone, but printing is easier from a computer.',
   'prepare.import.title': 'Sheet',
   'prepare.import.pasteTarget': 'Click here and paste (Ctrl+V)',
@@ -45,10 +45,15 @@ export const en = {
   'prepare.summary.boxes': '{count} boxes',
   'prepare.summary.page': '1 page',
   'prepare.summary.pages': '{count} pages',
-  'prepare.warn.noBoxes': 'There are no boxes. Empty cells in rows with text become boxes; click empty cells in the preview to add or remove boxes.',
+  'prepare.warn.noBoxes': 'There are no boxes. Empty cells in rows with text become boxes; write [ ] in a cell or its note, or click a cell in the preview, to add one.',
   'prepare.warn.smallBoxes': 'Boxes are small ({size} mm). Try landscape, full width or fewer rows.',
   'prepare.warn.tooComplex': 'This range is too large for one page code. Split it into smaller ranges.',
-  'prepare.preview.hint': 'Click an empty cell to switch it between box and blank.',
+  'prepare.preview.hint': 'Click a cell without text to choose what it is.',
+  'prepare.tokens.hint': 'In the spreadsheet, write in a cell (alone) or anywhere in its note: [ ] for a box, [-] for blank.',
+  'prepare.cell.title': 'Cell {cell}',
+  'prepare.cell.automatic': 'Automatic: {kind}',
+  'prepare.cell.box': 'Box',
+  'prepare.cell.blank': 'Blank',
   'prepare.print': 'Print',
   'prepare.printHint': 'Print at 100% scale. Margins do not matter.',
 

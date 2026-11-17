@@ -5,9 +5,11 @@ import {
   buildPrintable,
   cellAddress,
   cellKey,
+  classifyCells,
   DEFAULT_SETTINGS,
   parseCellAddress,
   templateFingerprint,
+  type KindOverride,
   type LayoutSettings,
   type Sheet,
   type Template,
@@ -123,18 +125,24 @@ export function PreparePage({ active, mobile, touch }: Props) {
     }
   }, [template]);
 
-  const toggle = useCallback(
+  const chosen = useCallback((row: number, col: number) => template?.overrides[cellKey(row, col)], [template]);
+  const automatic = useCallback(
     (row: number, col: number) => {
-      if (!printable?.ok) return;
-      const kind = printable.value.layout.kinds[row][col];
-      setTemplate((current) => {
-        if (!current) return current;
-        const overrides = { ...current.overrides, [cellKey(row, col)]: kind === 'mark' ? ('blank' as const) : ('mark' as const) };
-        return { ...current, overrides };
-      });
+      if (!template) return 'blank' as const;
+      const { [cellKey(row, col)]: _, ...others } = template.overrides;
+      return classifyCells(template.sheet, others)[row][col];
     },
-    [printable],
+    [template],
   );
+  const choose = useCallback((row: number, col: number, kind: KindOverride | null) => {
+    setTemplate((current) => {
+      if (!current) return current;
+      const overrides = { ...current.overrides };
+      if (kind) overrides[cellKey(row, col)] = kind;
+      else delete overrides[cellKey(row, col)];
+      return { ...current, overrides };
+    });
+  }, []);
 
   const print = async () => {
     if (!template) return;
@@ -228,8 +236,19 @@ export function PreparePage({ active, mobile, touch }: Props) {
           <Text size="sm" c="dimmed">
             {t('prepare.preview.hint')} {t('prepare.printHint')}
           </Text>
+          <Text size="sm" c="dimmed">
+            {t('prepare.tokens.hint')}
+          </Text>
           {printable.value.pages.map((page) => (
-            <PagePreview key={page.layout.index} page={page} kinds={layout.kinds} onToggle={toggle} />
+            <PagePreview
+              key={page.layout.index}
+              page={page}
+              kinds={layout.kinds}
+              anchor={template!.anchor}
+              chosen={chosen}
+              automatic={automatic}
+              onChoose={choose}
+            />
           ))}
           <PrintRoot printable={printable.value} />
         </>

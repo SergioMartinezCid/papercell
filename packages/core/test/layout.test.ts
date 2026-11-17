@@ -29,6 +29,26 @@ describe('classifyCells', () => {
     ]);
   });
 
+  it('takes kinds from tokens in cells and notes, after choices made by hand', () => {
+    const c = (text: string, note?: string) => ({ text, ...(note ? { note } : {}) });
+    const sheet = normalizeSheet({
+      cells: [
+        [c('Name'), c('A'), c('B'), c('C')],
+        [c('x'), c('[-]'), c('', '[-] absent'), c('')],
+        [c('y'), c(' [ ] '), c('', 'Ann:\nleave [-] here'), c('', 'nothing to see')],
+        [c(''), c('\u2610'), c('', '[ ]'), c('')],
+        [c('z'), c('Q[1]'), c('[-]', '[ ]'), c('text', '[-]')],
+      ],
+    });
+    expect(classifyCells(sheet, { '1,1': 'mark' })).toEqual([
+      ['text', 'text', 'text', 'text'],
+      ['text', 'mark', 'blank', 'mark'],
+      ['text', 'mark', 'blank', 'mark'],
+      ['blank', 'mark', 'mark', 'blank'],
+      ['text', 'text', 'blank', 'text'],
+    ]);
+  });
+
   it('leaves hidden rows and columns out', () => {
     const sheet = normalizeSheet({ ...text([['Name', 'old', 'A'], ['x', '1', ''], ['gone', '', ''], ['y', '', '']]), hiddenRows: [2], hiddenCols: [1] });
     expect(classifyCells(sheet)).toEqual([

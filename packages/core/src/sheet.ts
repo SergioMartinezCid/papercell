@@ -1,4 +1,5 @@
 /** A rectangular range copied from a spreadsheet: text, light formatting and geometry. */
+import { findToken, parseToken, type CellToken } from './tokens';
 
 export interface CellStyle {
   bold?: boolean;
@@ -43,7 +44,7 @@ export interface Sheet {
  * How a cell is treated:
  * - `text`: printed, never scanned.
  * - `mark`: printed as an empty box and read back as marked / empty.
- * - `blank`: empty, printed as an empty cell and not scanned.
+ * - `blank`: printed as an empty cell and not scanned.
  * - `covered`: hidden under a merged cell.
  * - `hidden`: in a row or column hidden in the spreadsheet.
  *
@@ -51,8 +52,11 @@ export interface Sheet {
  */
 export type CellKind = 'text' | 'mark' | 'blank' | 'covered' | 'hidden';
 
+/** A kind chosen by hand in the app for a cell that has no text. */
+export type KindOverride = 'mark' | 'blank';
+
 /** Per-cell overrides chosen by the user, keyed by `cellKey(row, col)`. */
-export type KindOverrides = Record<string, 'mark' | 'blank'>;
+export type KindOverrides = Record<string, KindOverride>;
 
 export const DEFAULT_COL_WIDTH = 100;
 export const DEFAULT_ROW_HEIGHT = 21;
@@ -105,15 +109,26 @@ function positive(value: number | undefined, fallback: number): number {
 }
 
 /**
- * Decides the kind of every cell. Cells with text are printed only; empty cells become boxes,
- * except in rows that have no text at all (spacer rows). Overrides apply to empty cells. Hidden rows
- * and columns are left out, as if they were not in the range.
+ * The token that sets a cell's kind: the cell's whole text, otherwise the first token in the note of a cell
+ * without text. Notes of cells with text are ignored: the text is printed.
+ */
+export function cellToken(cell: SheetCell): CellToken | null {
+  if (cell.text.trim() !== '') return parseToken(cell.text);
+  return cell.note ? findToken(cell.note) : null;
+}
+
+/**
+ * Decides the kind of every cell. Cells with text are printed only. Other cells take, in this order, the
+ * kind chosen by hand (`overrides`), the one their token sets (see `tokens.ts`) or else become boxes,
+ * except in rows without text (spacer rows), which stay blank. Hidden rows and columns are left out, as if
+ * they were not in the range.
  */
 export function classifyCells(sheet: Sheet, overrides: KindOverrides = {}): CellKind[][] {
   const hiddenRows = new Set(sheet.hiddenRows);
   const hiddenCols = new Set(sheet.hiddenCols);
+  const tokens = sheet.cells.map((row) => row.map(cellToken));
   const kinds: CellKind[][] = sheet.cells.map((row, r) =>
-    row.map((cell, c) => (hiddenRows.has(r) || hiddenCols.has(c) ? 'hidden' : cell.text.trim() !== '' ? 'text' : 'blank')),
+    row.map((cell, c) => (hiddenRows.has(r) || hiddenCols.has(c) ? 'hidden' : cell.text.trim() !== '' && !tokens[r][c] ? 'text' : 'blank')),
   );
   for (const m of sheet.merges) {
     for (let r = m.row; r < m.row + m.rowSpan; r++) {
@@ -126,8 +141,7 @@ export function classifyCells(sheet: Sheet, overrides: KindOverrides = {}): Cell
     const spacer = !row.some((k) => k === 'text');
     row.forEach((kind, c) => {
       if (kind !== 'blank') return;
-      const override = overrides[cellKey(r, c)];
-      row[c] = override ?? (spacer ? 'blank' : 'mark');
+      row[c] = overrides[cellKey(r, c)] ?? tokens[r][c]?.kind ?? (spacer ? 'blank' : 'mark');
     });
   });
   return kinds;

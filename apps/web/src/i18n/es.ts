@@ -8,7 +8,7 @@ export const es: Messages = {
 
   'prepare.empty.title': 'Empieza desde una hoja de cálculo',
   'prepare.empty.body':
-    'Selecciona un rango en Google Sheets, Excel o LibreOffice, cópialo y pégalo aquí. Las celdas con texto se imprimen; las vacías se convierten en casillas para marcar.',
+    'Selecciona un rango en Google Sheets, Excel o LibreOffice, cópialo y pégalo aquí. Las celdas con texto se imprimen; las vacías se convierten en casillas para marcar. Escribe [-] en una celda, o en su nota, para dejarla en blanco.',
   'prepare.mobileNote': 'Puedes preparar hojas en el móvil, pero imprimir es más fácil desde un ordenador.',
   'prepare.import.title': 'Hoja',
   'prepare.import.pasteTarget': 'Haz clic aquí y pega (Ctrl+V)',
@@ -47,10 +47,15 @@ export const es: Messages = {
   'prepare.summary.boxes': '{count} casillas',
   'prepare.summary.page': '1 página',
   'prepare.summary.pages': '{count} páginas',
-  'prepare.warn.noBoxes': 'No hay casillas. Las celdas vacías de filas con texto se convierten en casillas; haz clic en celdas vacías de la vista previa para añadir o quitar casillas.',
+  'prepare.warn.noBoxes': 'No hay casillas. Las celdas vacías de filas con texto se convierten en casillas; escribe [ ] en una celda o en su nota, o haz clic en una celda de la vista previa, para añadir una.',
   'prepare.warn.smallBoxes': 'Las casillas son pequeñas ({size} mm). Prueba horizontal, ancho completo o menos filas.',
   'prepare.warn.tooComplex': 'Este rango es demasiado grande para un código de página. Divídelo en rangos más pequeños.',
-  'prepare.preview.hint': 'Haz clic en una celda vacía para alternar entre casilla y vacía.',
+  'prepare.preview.hint': 'Haz clic en una celda sin texto para elegir qué es.',
+  'prepare.tokens.hint': 'En la hoja de cálculo, escribe en una celda (solo) o en cualquier parte de su nota: [ ] para una casilla, [-] para dejarla en blanco.',
+  'prepare.cell.title': 'Celda {cell}',
+  'prepare.cell.automatic': 'Automático: {kind}',
+  'prepare.cell.box': 'Casilla',
+  'prepare.cell.blank': 'En blanco',
   'prepare.print': 'Imprimir',
   'prepare.printHint': 'Imprime a escala 100 %. Los márgenes no importan.',
 
