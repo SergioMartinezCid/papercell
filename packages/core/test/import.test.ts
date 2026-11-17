@@ -55,6 +55,27 @@ describe('HTML clipboard tables', () => {
     expect(sheet.cells[2][0].style).toEqual({ italic: true, color: '#ff0000', fontSize: 12 });
   });
 
+  it('reads LibreOffice notes as notes, not as cell text', () => {
+    // Shape of what LibreOffice Calc puts on the clipboard for cells with a note.
+    const lo = `<table cellspacing="0" border="0"><colgroup span="2" width="85"></colgroup>
+      <tr><td height="17" align="left">a</td>
+        <td align="left"><a class="comment-indicator"></a>
+        <comment>[##]</comment>
+        <br></td></tr>
+      <tr><td height="17" align="left"><a class="comment-indicator"></a>
+        <comment>see [-] here</comment>
+        x</td><td align="left">b</td></tr></table>`;
+    const sheet = sheetFromHtmlTable(new DOMParser().parseFromString(lo, 'text/html'))!;
+    expect(sheet.cells.map((r) => r.map((c) => c.text))).toEqual([
+      ['a', ''],
+      ['x', 'b'],
+    ]);
+    expect(sheet.cells.map((r) => r.map((c) => c.note))).toEqual([
+      [undefined, '[##]'],
+      ['see [-] here', undefined],
+    ]);
+  });
+
   it('returns null without a table', () => {
     expect(sheetFromHtmlTable(new DOMParser().parseFromString('<p>hi</p>', 'text/html'))).toBeNull();
   });

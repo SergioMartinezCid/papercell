@@ -15,6 +15,8 @@ export interface CellStyle {
 export interface SheetCell {
   text: string;
   style?: CellStyle;
+  /** The cell's note (comment), never printed. */
+  note?: string;
 }
 
 export interface Merge {
@@ -66,7 +68,7 @@ export function normalizeSheet(input: {
   const rowCount = input.cells.length;
   const colCount = Math.max(0, ...input.cells.map((r) => r.length));
   const cells = input.cells.map((row) => {
-    const out = row.map((c) => ({ text: c.text ?? '', ...(c.style ? { style: c.style } : {}) }));
+    const out = row.map((c) => ({ text: c.text ?? '', ...(c.style ? { style: c.style } : {}), ...(c.note ? { note: c.note } : {}) }));
     while (out.length < colCount) out.push({ text: '' });
     return out;
   });

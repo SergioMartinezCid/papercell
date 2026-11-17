@@ -1,6 +1,6 @@
 /**
  * HTML tables, as spreadsheets put them on the clipboard (Google Sheets, LibreOffice, Excel):
- * text, merged cells, column widths, row heights and inline formatting.
+ * text, notes, merged cells, column widths, row heights and inline formatting.
  */
 import { DEFAULT_FONT_SIZE, normalizeSheet, type CellStyle, type Merge, type Sheet, type SheetCell } from '../sheet';
 
@@ -32,7 +32,8 @@ export function sheetFromHtmlTable(root: ParentNode): Sheet | null {
       while (taken.has(`${r},${c}`)) c++;
       const rowSpan = Math.max(1, Number(td.getAttribute('rowspan') ?? 1) || 1);
       const colSpan = Math.max(1, Number(td.getAttribute('colspan') ?? 1) || 1);
-      cells[r][c] = { text: textOf(td).replace(/ /g, ' ').trim(), style: styleOf(td, baseFontSize) };
+      const note = noteOf(td);
+      cells[r][c] = { text: textOf(td).replace(/ /g, ' ').trim(), style: styleOf(td, baseFontSize), ...(note ? { note } : {}) };
       for (let dr = 0; dr < rowSpan; dr++) {
         for (let dc = 0; dc < colSpan; dc++) {
           taken.add(`${r + dr},${c + dc}`);
@@ -53,6 +54,9 @@ export function sheetFromHtmlTable(root: ParentNode): Sheet | null {
   return normalizeSheet({ cells: dense, colWidths, rowHeights, merges });
 }
 
+/** Elements that are not part of the cell's text: LibreOffice writes a cell's note as `<comment>`. */
+const NOT_TEXT = new Set(['STYLE', 'SCRIPT', 'COMMENT']);
+
 function textOf(node: Node): string {
   let out = '';
   node.childNodes.forEach((child) => {
@@ -60,10 +64,17 @@ function textOf(node: Node): string {
     else if (child.nodeType === 1) {
       const el = child as Element;
       if (el.tagName === 'BR') out += '\n';
-      else if (el.tagName !== 'STYLE' && el.tagName !== 'SCRIPT') out += textOf(el);
+      else if (!NOT_TEXT.has(el.tagName)) out += textOf(el);
     }
   });
   return out;
+}
+
+function noteOf(td: Element): string {
+  return Array.from(td.querySelectorAll('comment'))
+    .map((c) => (c.textContent ?? '').trim())
+    .filter(Boolean)
+    .join('\n');
 }
 
 function styleOf(td: Element, baseFontSize: number): CellStyle | undefined {
