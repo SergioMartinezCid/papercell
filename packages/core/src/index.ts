@@ -17,5 +17,6 @@ export * from './scan/detect';
 export * from './scan/read';
 export * from './scan/classify';
 export * from './scan/digits';
+export * from './scan/letters';
 export * from './scan/numbers';
 export * from './scan/scanPage';
