@@ -4,6 +4,7 @@
  * or in style rules for cells and classes, where Excel puts it).
  */
 import { DEFAULT_FONT_SIZE, normalizeSheet, type CellStyle, type Merge, type Sheet, type SheetCell } from '../sheet';
+import { notesFromOnlyOffice } from './onlyOffice';
 
 /** Reads the first table under `root` (a parsed document or element); null when there is none. */
 export function sheetFromHtmlTable(root: ParentNode): Sheet | null {
@@ -61,6 +62,21 @@ export function sheetFromHtmlTable(root: ParentNode): Sheet | null {
     Array.from({ length: Math.max(0, ...cells.map((row) => row?.length ?? 0)) }, (_, c) => cells[r]?.[c] ?? { text: '' }),
   );
   if (dense.length === 0) return null;
+  // ONLYOFFICE gives widths on the cells only, and notes only in data of its own.
+  if (colWidths.length === 0 && rows[0]) {
+    for (const td of Array.from(rows[0].children)) {
+      const span = Math.max(1, Number(td.getAttribute('colspan') ?? 1) || 1);
+      const width = px(parseStyle(td.getAttribute('style')).width) ?? px(td.getAttribute('width'));
+      for (let i = 0; i < span; i++) {
+        if (width === 0) hiddenCols.push(colWidths.length);
+        colWidths.push(width === undefined ? 0 : width / span);
+      }
+    }
+  }
+  for (const note of notesFromOnlyOffice(table) ?? []) {
+    const cell = dense[note.row]?.[note.col];
+    if (cell && !cell.note) dense[note.row][note.col] = { ...cell, note: note.text };
+  }
   return normalizeSheet({ cells: dense, colWidths, rowHeights, merges, hiddenRows, hiddenCols });
 }
 

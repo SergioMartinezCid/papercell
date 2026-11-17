@@ -182,3 +182,39 @@ describe('Google Sheets notes', () => {
     expect(notesFromGoogleSheets('{"2":[194,194],"14":["a"],"15":{"1":1,"2":2}}')).toBeNull();
   });
 });
+
+describe('ONLYOFFICE notes', () => {
+  /** A table as ONLYOFFICE copies it: notes only in its binary data (here, just what is read of it). */
+  function onlyOfficeTable(range: string, notes: Array<[number, number, string]>, rows: string): string {
+    const int32 = (v: number) => [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255];
+    const utf16 = (text: string) => Array.from(text).flatMap((ch) => [ch.charCodeAt(0) & 255, ch.charCodeAt(0) >> 8]);
+    const bytes = [0x07, ...utf16('Sheet1'), 0, 0, 0x05, ...utf16(range), 0, 0];
+    for (const [row, col, text] of notes) {
+      const t = utf16(text);
+      bytes.push(0x14, ...int32(30 + t.length), 0x00, 0x04, ...int32(row), 0x01, 0x04, ...int32(col), 0x02, 0x06, ...int32(10 + t.length));
+      bytes.push(0x03, ...int32(5 + t.length), 0x00, ...int32(t.length), ...t, 0x02, 0x00);
+    }
+    const data = btoa(String.fromCharCode(...bytes));
+    return `<table class="xslData;XLSY;v2;${bytes.length};${data}" style="border-collapse: collapse;"><tbody>${rows}</tbody></table>`;
+  }
+
+  it('reads notes from its own data, and widths and hidden columns from the cells', () => {
+    const cell = (text: string, width = 60) => `<td style="width:${width}pt;white-space:nowrap;"><span>${text}</span></td>`;
+    const html = onlyOfficeTable(
+      'C3:E4',
+      [
+        [2, 4, '[##]'],
+        [3, 2, 'see [-] here'],
+        [9, 9, 'outside'],
+      ],
+      `<tr style="height:12.8pt">${cell('a')}${cell('hidden', 0)}<td></td></tr><tr style="height:12.8pt">${cell('x')}${cell('', 0)}${cell('y')}</tr>`,
+    );
+    const sheet = sheetFromHtmlTable(new DOMParser().parseFromString(html, 'text/html'))!;
+    expect(sheet.cells.map((r) => r.map((c) => c.note))).toEqual([
+      [undefined, undefined, '[##]'],
+      ['see [-] here', undefined, undefined],
+    ]);
+    expect(sheet.colWidths[0]).toBe(80);
+    expect(sheet.hiddenCols).toEqual([1]);
+  });
+});
