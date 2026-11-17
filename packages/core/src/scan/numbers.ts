@@ -10,7 +10,7 @@ import { sourceRowOf, type PagePayload } from '../payload';
 import { digitBoxes } from '../spec';
 import type { NumberField } from '../tokens';
 import { classifyDigit, normalizeDigit } from './digits';
-import type { GrayImage, Point } from './image';
+import { inkBlobs, type GrayImage, type Point } from './image';
 
 export interface DigitRead {
   /** The box, where it is expected on the page: where it was printed, moved like the checkboxes around it. */
@@ -64,9 +64,18 @@ const ABOVE_PAPER = 0.12;
 const ABOVE_OUTLINE = 0.1;
 /** Blobs of writing smaller than this (mm²) are specks, not strokes. */
 const MIN_STROKE_AREA = 0.8;
-/** Blobs lying mostly (OUTLINE_SHARE) within this distance of the box outline (mm) are the outline, where shading darkened it. */
+/**
+ * Blobs lying mostly (OUTLINE_SHARE) within this distance of the box outline (mm) are the outline, where shading
+ * darkened it, unless they are as dark as writing: their darkest pixels (OUTLINE_PEAK of them) are more than
+ * OUTLINE_DARKER darker than the outline, on the page and around that box (the LOCAL_OUTLINE quantile along its
+ * edges, which writing along some of them does not reach). Letters such as L and F, written as large as the
+ * box, lie along it too.
+ */
 const OUTLINE_BAND = 0.6;
 const OUTLINE_SHARE = 0.7;
+const OUTLINE_PEAK = 0.9;
+const OUTLINE_DARKER = 0.2;
+const LOCAL_OUTLINE = 0.25;
 /** A blob belongs to a box when its centre is in the box or this close to it (mm), as the box may be slightly off. */
 const CENTRE_SLACK = 0.5;
 
@@ -81,9 +90,23 @@ const ANCHORS = 6;
 const ANCHOR_RANGE = 50;
 
 /**
- * Reads the number fields of a page. Digit boxes are light, so they are not found by their outline (cell
- * gridlines look alike): they take the shift of nearby checkboxes (`anchors`), if any, and the crop around
- * each box leaves room for the rest.
+ * Light boxes are found a whole field at a time: the field is moved, up to SNAP_RANGE mm (in SNAP_STEP steps)
+ * from where the checkboxes around it say, to where its box outlines line up best with thin lines on the page
+ * (darker than the page SNAP_SIDE mm to either side). The fit is that of the worst of the four sides of the
+ * boxes (tops, bottoms, lefts, rights), each the median over points along them: a cell's gridline fits the tops
+ * or the bottoms of a row of boxes, not both, and strokes of writing only some points. The field moves only to
+ * a fit of at least SNAP_MIN, and SNAP_GAIN better than where it was.
+ */
+const SNAP_RANGE = 1.2;
+const SNAP_STEP = 0.1;
+const SNAP_SIDE = 0.45;
+const SNAP_MIN = 0.03;
+const SNAP_GAIN = 0.02;
+
+/**
+ * Reads the number fields of a page. Digit boxes are light, so they are found by their outlines as a whole
+ * field (see SNAP_RANGE), starting from the shift of nearby checkboxes (`anchors`), if any, and the crop
+ * around each box leaves room for the rest.
  */
 export function readNumbers(page: GrayImage, pxPerMm: number, payload: PagePayload, anchors: Anchor[] = []): ReadNumber[] {
   const fields = (payload.numbers ?? []).map((n) => {
@@ -91,10 +114,13 @@ export function readNumbers(page: GrayImage, pxPerMm: number, payload: PagePaylo
     return { ...n, row: sourceRowOf(payload, n.pageRow), cell, ...digitBoxes(cell, n.field, payload.version) };
   });
   if (fields.length === 0) return [];
-  const outline = outlineLevel(page, pxPerMm, fields.flatMap((f) => f.boxes));
-  const crops = fields.map((f) =>
-    f.boxes.map((printed, i) => {
-      const shift = shiftNear(anchors, printed);
+  const outline = quantile(
+    fields.flatMap((f) => f.boxes.flatMap((b) => outlineSamples(page, pxPerMm, b))),
+    0.5,
+  );
+  const crops = fields.map((f) => {
+    const shift = fieldShift(page, pxPerMm, f.boxes, shiftNear(anchors, around(f.boxes)));
+    return f.boxes.map((printed, i) => {
       const box = { ...printed, x: printed.x + shift.x, y: printed.y + shift.y };
       const before = f.boxes[i - 1];
       const after = f.boxes[i + 1];
@@ -106,7 +132,8 @@ export function readNumbers(page: GrayImage, pxPerMm: number, payload: PagePaylo
       // The printed separator is no writing either.
       const sep = f.separator && { x: f.separator.x + 0.15 * f.separator.w + shift.x, y: f.separator.y + shift.y, w: 0.7 * f.separator.w, h: f.separator.h };
       const [ink, w, h] = cropInk(page, pxPerMm, area, box, outline + ABOVE_OUTLINE, sep);
-      keepStrokes(ink, w, h, MIN_STROKE_AREA * pxPerMm * pxPerMm, OUTLINE_BAND * pxPerMm, CENTRE_SLACK * pxPerMm, {
+      const writing = Math.max(outline, quantile(outlineSamples(page, pxPerMm, box), LOCAL_OUTLINE)) + OUTLINE_DARKER;
+      keepStrokes(ink, w, h, MIN_STROKE_AREA * pxPerMm * pxPerMm, OUTLINE_BAND * pxPerMm, CENTRE_SLACK * pxPerMm, writing, {
         x0: (box.x - area.x) * pxPerMm,
         y0: (box.y - area.y) * pxPerMm,
         x1: (box.x + box.w - area.x) * pxPerMm,
@@ -114,8 +141,8 @@ export function readNumbers(page: GrayImage, pxPerMm: number, payload: PagePaylo
       });
       const fill = ink.reduce((sum, v) => sum + v, 0) / Math.max(1, box.w * box.h * pxPerMm * pxPerMm);
       return { box, fill, ink, w, h };
-    }),
-  );
+    });
+  });
   const written = writtenFrom(crops.flat().map((c) => c.fill));
   return fields.map((f, i) => {
     const digits = crops[i].map((c) => readDigit(c, written));
@@ -124,10 +151,11 @@ export function readNumbers(page: GrayImage, pxPerMm: number, payload: PagePaylo
 }
 
 /**
- * Darkness of the printed digit box outlines: for points along them, the darkest pixel across the line within
- * OUTLINE_BAND (the boxes may be slightly off), then the median of those (strokes crossing them are few).
+ * Darkness of a box's printed outline at points along it: the darkest pixel across the line within OUTLINE_BAND
+ * (the box may be slightly off). The outline level of the page is the median over its boxes (strokes crossing
+ * them are few).
  */
-function outlineLevel(page: GrayImage, p: number, boxes: Rect[]): number {
+function outlineSamples(page: GrayImage, p: number, b: Rect): number[] {
   const ink = (x: number, y: number) => {
     const [px, py] = [Math.round(x * p), Math.round(y * p)];
     return px >= 0 && py >= 0 && px < page.width && py < page.height ? 1 - page.data[py * page.width + px] : 0;
@@ -138,14 +166,17 @@ function outlineLevel(page: GrayImage, p: number, boxes: Rect[]): number {
     return max;
   };
   const samples: number[] = [];
-  for (const b of boxes) {
-    for (let t = 0.15; t < 0.9; t += 0.15) {
-      samples.push(across(b.x + t * b.w, b.y, 0, 1), across(b.x + t * b.w, b.y + b.h, 0, 1));
-      samples.push(across(b.x, b.y + t * b.h, 1, 0), across(b.x + b.w, b.y + t * b.h, 1, 0));
-    }
+  for (let t = 0.15; t < 0.9; t += 0.15) {
+    samples.push(across(b.x + t * b.w, b.y, 0, 1), across(b.x + t * b.w, b.y + b.h, 0, 1));
+    samples.push(across(b.x, b.y + t * b.h, 1, 0), across(b.x + b.w, b.y + t * b.h, 1, 0));
   }
-  samples.sort((a, b) => a - b);
-  return samples[samples.length >> 1];
+  return samples;
+}
+
+/** The value at quantile `q` (0–1) of some values. */
+function quantile(values: number[], q: number): number {
+  const s = [...values].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.floor(s.length * q))];
 }
 
 /** The fill from which a digit box counts as written, for the digit boxes of one page (see SPLIT_LOW). */
@@ -160,6 +191,43 @@ export function writtenFrom(fills: number[]): number {
   if (best.gap >= MIN_GAP) return best.at;
   const typical = s[s.length >> 1] ?? 0;
   return typical < FALLBACK ? Math.max(FALLBACK, typical + EMPTY_SPREAD) : FALLBACK;
+}
+
+/** Where the outlines of a field's boxes fit best, as a shift from where they were printed (see SNAP_RANGE). */
+function fieldShift(page: GrayImage, p: number, boxes: Rect[], start: Point): Point {
+  const ink = (x: number, y: number) => {
+    const [px, py] = [Math.round(x * p), Math.round(y * p)];
+    return px >= 0 && py >= 0 && px < page.width && py < page.height ? 1 - page.data[py * page.width + px] : 0;
+  };
+  // Points along each side of the boxes, with the direction across the line there.
+  const sides: Array<Array<[number, number, number, number]>> = [[], [], [], []];
+  for (const b of boxes) {
+    for (let t = 0.1; t < 0.95; t += 0.1) {
+      sides[0].push([b.x + t * b.w, b.y, 0, 1]);
+      sides[1].push([b.x + t * b.w, b.y + b.h, 0, 1]);
+      sides[2].push([b.x, b.y + t * b.h, 1, 0]);
+      sides[3].push([b.x + b.w, b.y + t * b.h, 1, 0]);
+    }
+  }
+  const line = (x: number, y: number, nx: number, ny: number) =>
+    ink(x, y) - Math.max(ink(x + SNAP_SIDE * nx, y + SNAP_SIDE * ny), ink(x - SNAP_SIDE * nx, y - SNAP_SIDE * ny));
+  const fit = (dx: number, dy: number) => Math.min(...sides.map((points) => quantile(points.map(([x, y, nx, ny]) => line(x + dx, y + dy, nx, ny)), 0.5)));
+  let best = { shift: start, fit: Math.max(SNAP_MIN, fit(start.x, start.y) + SNAP_GAIN) };
+  const steps = Math.round(SNAP_RANGE / SNAP_STEP);
+  for (let i = -steps; i <= steps; i++) {
+    for (let j = -steps; j <= steps; j++) {
+      const shift = { x: start.x + i * SNAP_STEP, y: start.y + j * SNAP_STEP };
+      const f = fit(shift.x, shift.y);
+      if (f > best.fit) best = { shift, fit: f };
+    }
+  }
+  return best.shift;
+}
+
+function around(boxes: Rect[]): Rect {
+  const x = Math.min(...boxes.map((b) => b.x));
+  const y = Math.min(...boxes.map((b) => b.y));
+  return { x, y, w: Math.max(...boxes.map((b) => b.x + b.w)) - x, h: Math.max(...boxes.map((b) => b.y + b.h)) - y };
 }
 
 /** Median shift of the nearest anchors, or none. */
@@ -233,8 +301,8 @@ export function cropInk(
 
 /**
  * Keeps the blobs of ink (8-connected) that are at least `minArea` pixels, centred inside `box` (pixels of the
- * crop, give or take `slack`) and not mostly within `band` pixels of its outline: the strokes of the digit in this box, without
- * specks, pieces of a neighbour's digit or the outline itself.
+ * crop, give or take `slack`) and either not mostly within `band` pixels of its outline or darker there than
+ * `writing`: the strokes written in this box, without specks, pieces of a neighbour's writing or the outline itself.
  */
 function keepStrokes(
   ink: Float32Array,
@@ -243,49 +311,22 @@ function keepStrokes(
   minArea: number,
   band: number,
   slack: number,
+  writing: number,
   box: { x0: number; y0: number; x1: number; y1: number },
 ): void {
   const near = (v: number, edge: number) => Math.abs(v - edge) <= band;
   const onOutline = (x: number, y: number) =>
     ((near(x, box.x0) || near(x, box.x1)) && y >= box.y0 - band && y <= box.y1 + band) ||
     ((near(y, box.y0) || near(y, box.y1)) && x >= box.x0 - band && x <= box.x1 + band);
-  const label = new Int32Array(w * h).fill(-1);
-  const keep: boolean[] = [];
-  const stack: number[] = [];
-  for (let start = 0; start < ink.length; start++) {
-    if (ink[start] === 0 || label[start] >= 0) continue;
-    const id = keep.length;
-    let size = 0;
-    let sx = 0;
-    let sy = 0;
-    let outline = 0;
-    label[start] = id;
-    stack.push(start);
-    while (stack.length) {
-      const i = stack.pop()!;
-      const x = i % w;
-      const y = (i - x) / w;
-      size++;
-      sx += x;
-      sy += y;
-      if (onOutline(x + 0.5, y + 0.5)) outline++;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-          const j = ny * w + nx;
-          if (ink[j] !== 0 && label[j] < 0) {
-            label[j] = id;
-            stack.push(j);
-          }
-        }
-      }
-    }
-    const [cx, cy] = [sx / size + 0.5, sy / size + 0.5];
+  const { label, blobs } = inkBlobs(ink, w, h, onOutline);
+  const onOutlineOnly = blobs.map((b) => b.tagged >= OUTLINE_SHARE * b.size);
+  const values = blobs.map((): number[] => []);
+  for (let i = 0; i < ink.length; i++) if (ink[i] !== 0 && onOutlineOnly[label[i]]) values[label[i]].push(ink[i]);
+  const keep = blobs.map(({ size, cx, cy }, id) => {
     const inside = cx >= box.x0 - slack && cx <= box.x1 + slack && cy >= box.y0 - slack && cy <= box.y1 + slack;
-    keep.push(size >= minArea && inside && outline < OUTLINE_SHARE * size);
-  }
+    return size >= minArea && inside && (!onOutlineOnly[id] || quantile(values[id], OUTLINE_PEAK) > writing);
+  });
+
   for (let i = 0; i < ink.length; i++) if (ink[i] !== 0 && !keep[label[i]]) ink[i] = 0;
 }
 

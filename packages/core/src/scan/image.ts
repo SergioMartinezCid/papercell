@@ -171,3 +171,56 @@ export class Integral {
     return area > 0 ? this.sum(x0, y0, x1, y1) / area : 0;
   }
 }
+
+export interface InkBlob {
+  /** Pixels in the blob. */
+  size: number;
+  /** Centre, in pixels (pixel centres at +0.5). */
+  cx: number;
+  cy: number;
+  /** Pixels for which `tag` held. */
+  tagged: number;
+}
+
+/**
+ * The blobs of ink (8-connected non-zero pixels) of `ink` (`w` × `h`, row by row): `label` gives each pixel's
+ * blob (−1 for none). `tag(x, y)` is asked for every ink pixel, at its centre.
+ */
+export function inkBlobs(ink: Float32Array, w: number, h: number, tag: (x: number, y: number) => boolean): { label: Int32Array; blobs: InkBlob[] } {
+  const label = new Int32Array(w * h).fill(-1);
+  const blobs: InkBlob[] = [];
+  const stack: number[] = [];
+  for (let start = 0; start < ink.length; start++) {
+    if (ink[start] === 0 || label[start] >= 0) continue;
+    const id = blobs.length;
+    let size = 0;
+    let sx = 0;
+    let sy = 0;
+    let tagged = 0;
+    label[start] = id;
+    stack.push(start);
+    while (stack.length) {
+      const i = stack.pop()!;
+      const x = i % w;
+      const y = (i - x) / w;
+      size++;
+      sx += x;
+      sy += y;
+      if (tag(x + 0.5, y + 0.5)) tagged++;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const j = ny * w + nx;
+          if (ink[j] !== 0 && label[j] < 0) {
+            label[j] = id;
+            stack.push(j);
+          }
+        }
+      }
+    }
+    blobs.push({ size, cx: sx / size + 0.5, cy: sy / size + 0.5, tagged });
+  }
+  return { label, blobs };
+}
