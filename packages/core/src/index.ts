@@ -7,6 +7,7 @@ export * from './drawing';
 export * from './results';
 export * from './import/delimited';
 export * from './import/html';
+export * from './import/hidden';
 export * from './scan/image';
 export * from './scan/homography';
 export * from './scan/warp';

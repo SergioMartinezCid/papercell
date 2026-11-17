@@ -20,6 +20,8 @@ export const en = {
   'prepare.import.nothing': 'Nothing to import: the clipboard has no cells.',
   'prepare.import.failed': 'The file could not be read.',
   'prepare.import.loaded': 'Imported {rows} rows × {cols} columns',
+  'prepare.import.hiddenLines':
+    'The range has hidden rows or columns that could not be placed, so only its text was imported (no formatting or notes), and hidden rows and columns will be printed. To keep them hidden, show them, copy again and hide them afterwards.',
   'prepare.recent.title': 'Recent sheets',
   'prepare.recent.open': 'Open',
   'prepare.recent.delete': 'Delete',

@@ -34,6 +34,9 @@ export interface Sheet {
   /** Row heights in CSS pixels. */
   rowHeights: number[];
   merges: Merge[];
+  /** Rows and columns hidden in the spreadsheet: they keep their place in the range but are not printed. */
+  hiddenRows?: number[];
+  hiddenCols?: number[];
 }
 
 /**
@@ -42,10 +45,11 @@ export interface Sheet {
  * - `mark`: printed as an empty box and read back as marked / empty.
  * - `blank`: empty, printed as an empty cell and not scanned.
  * - `covered`: hidden under a merged cell.
+ * - `hidden`: in a row or column hidden in the spreadsheet.
  *
  * A future `write` kind (handwriting read by OCR) fits next to `mark`.
  */
-export type CellKind = 'text' | 'mark' | 'blank' | 'covered';
+export type CellKind = 'text' | 'mark' | 'blank' | 'covered' | 'hidden';
 
 /** Per-cell overrides chosen by the user, keyed by `cellKey(row, col)`. */
 export type KindOverrides = Record<string, 'mark' | 'blank'>;
@@ -64,6 +68,8 @@ export function normalizeSheet(input: {
   colWidths?: number[];
   rowHeights?: number[];
   merges?: Merge[];
+  hiddenRows?: number[];
+  hiddenCols?: number[];
 }): Sheet {
   const rowCount = input.cells.length;
   const colCount = Math.max(0, ...input.cells.map((r) => r.length));
@@ -84,7 +90,14 @@ export function normalizeSheet(input: {
       m.row + m.rowSpan <= rowCount &&
       m.col + m.colSpan <= colCount,
   );
-  return { cells, colWidths, rowHeights, merges };
+  const hiddenRows = lines(input.hiddenRows, rowCount);
+  const hiddenCols = lines(input.hiddenCols, colCount);
+  return { cells, colWidths, rowHeights, merges, ...(hiddenRows.length ? { hiddenRows } : {}), ...(hiddenCols.length ? { hiddenCols } : {}) };
+}
+
+/** Distinct valid line indices, in order. */
+function lines(indices: number[] | undefined, count: number): number[] {
+  return [...new Set(indices ?? [])].filter((i) => Number.isInteger(i) && i >= 0 && i < count).sort((a, b) => a - b);
 }
 
 function positive(value: number | undefined, fallback: number): number {
@@ -93,16 +106,19 @@ function positive(value: number | undefined, fallback: number): number {
 
 /**
  * Decides the kind of every cell. Cells with text are printed only; empty cells become boxes,
- * except in rows that have no text at all (spacer rows). Overrides apply to empty cells.
+ * except in rows that have no text at all (spacer rows). Overrides apply to empty cells. Hidden rows
+ * and columns are left out, as if they were not in the range.
  */
 export function classifyCells(sheet: Sheet, overrides: KindOverrides = {}): CellKind[][] {
-  const kinds: CellKind[][] = sheet.cells.map((row) =>
-    row.map((cell) => (cell.text.trim() !== '' ? 'text' : 'blank')),
+  const hiddenRows = new Set(sheet.hiddenRows);
+  const hiddenCols = new Set(sheet.hiddenCols);
+  const kinds: CellKind[][] = sheet.cells.map((row, r) =>
+    row.map((cell, c) => (hiddenRows.has(r) || hiddenCols.has(c) ? 'hidden' : cell.text.trim() !== '' ? 'text' : 'blank')),
   );
   for (const m of sheet.merges) {
     for (let r = m.row; r < m.row + m.rowSpan; r++) {
       for (let c = m.col; c < m.col + m.colSpan; c++) {
-        if (r !== m.row || c !== m.col) kinds[r][c] = 'covered';
+        if ((r !== m.row || c !== m.col) && kinds[r][c] !== 'hidden') kinds[r][c] = 'covered';
       }
     }
   }

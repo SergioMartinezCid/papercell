@@ -68,13 +68,14 @@ export function PreparePage({ active, mobile, touch }: Props) {
 
   const onPaste = useCallback(
     (data: DataTransfer | null) => {
-      const sheet = sheetFromClipboard(data);
-      if (!sheet) {
+      const pasted = sheetFromClipboard(data);
+      if (!pasted) {
         notifications.show({ color: 'orange', message: t('prepare.import.nothing') });
         return;
       }
       setWorksheets([]);
-      load(sheet);
+      load(pasted.sheet);
+      if (pasted.warning) notifications.show({ color: 'orange', autoClose: false, message: t('prepare.import.hiddenLines') });
     },
     [load, t],
   );

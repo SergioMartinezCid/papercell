@@ -22,6 +22,8 @@ export const es: Messages = {
   'prepare.import.nothing': 'Nada que importar: el portapapeles no tiene celdas.',
   'prepare.import.failed': 'No se pudo leer el archivo.',
   'prepare.import.loaded': 'Importadas {rows} filas × {cols} columnas',
+  'prepare.import.hiddenLines':
+    'El rango tiene filas o columnas ocultas que no se pudieron situar, así que solo se importó su texto (sin formato ni notas) y las filas y columnas ocultas se imprimirán. Para que sigan ocultas, muéstralas, copia de nuevo y vuelve a ocultarlas después.',
   'prepare.recent.title': 'Hojas recientes',
   'prepare.recent.open': 'Abrir',
   'prepare.recent.delete': 'Borrar',

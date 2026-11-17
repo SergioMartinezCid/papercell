@@ -1,16 +1,25 @@
 /** Getting a sheet from the clipboard or a file. */
-import { sheetFromDelimited, sheetFromHtmlTable, type Sheet } from '@papercell/core';
+import { parseDelimited, restoreHiddenLines, sheetFromDelimited, sheetFromHtmlTable, type Sheet } from '@papercell/core';
 
-/** Prefers the HTML flavour (keeps sizes, merges and formatting) over plain text. */
-export function sheetFromClipboard(data: DataTransfer | null): Sheet | null {
+export interface ClipboardImport {
+  sheet: Sheet;
+  /** `hidden-lines`: the range has hidden rows or columns that could not be placed, so only its text was kept. */
+  warning?: 'hidden-lines';
+}
+
+/** Prefers the HTML flavour (keeps sizes, merges, formatting and notes) over plain text. */
+export function sheetFromClipboard(data: DataTransfer | null): ClipboardImport | null {
   if (!data) return null;
+  const text = data.getData('text/plain').replace(/\r?\n$/, '');
   const html = data.getData('text/html');
-  if (html) {
-    const sheet = sheetFromHtmlTable(new DOMParser().parseFromString(html, 'text/html'));
-    if (sheet) return sheet;
+  const sheet = html ? sheetFromHtmlTable(new DOMParser().parseFromString(html, 'text/html')) : null;
+  if (sheet) {
+    // Spreadsheets copy plain text as tab-separated values, which still has hidden rows and columns.
+    if (!text.trim()) return { sheet };
+    const restored = restoreHiddenLines(sheet, parseDelimited(text, '\t'));
+    return restored ? { sheet: restored } : { sheet: sheetFromDelimited(text, '\t'), warning: 'hidden-lines' };
   }
-  const text = data.getData('text/plain');
-  return text.trim() ? sheetFromDelimited(text.replace(/\n$/, '')) : null;
+  return text.trim() ? { sheet: sheetFromDelimited(text) } : null;
 }
 
 export interface FileImport {

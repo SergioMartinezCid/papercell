@@ -31,9 +31,11 @@ function worksheetToSheet(ws: Worksheet): Sheet {
 
   const cells: SheetCell[][] = [];
   const rowHeights: number[] = [];
+  const hiddenRows: number[] = [];
   for (let r = top; r <= bottom; r++) {
     const row = ws.getRow(r);
     rowHeights.push(row.height ? (row.height * 96) / 72 : 21);
+    if (row.hidden) hiddenRows.push(r - top);
     const out: SheetCell[] = [];
     for (let c = left; c <= right; c++) {
       const cell = ws.getCell(r, c);
@@ -43,16 +45,18 @@ function worksheetToSheet(ws: Worksheet): Sheet {
     cells.push(out);
   }
   const colWidths: number[] = [];
+  const hiddenCols: number[] = [];
   for (let c = left; c <= right; c++) {
-    const width = ws.getColumn(c).width;
-    colWidths.push(width ? Math.round(width * 7 + 5) : 100);
+    const column = ws.getColumn(c);
+    colWidths.push(column.width ? Math.round(column.width * 7 + 5) : 100);
+    if (column.hidden) hiddenCols.push(c - left);
   }
   const merges: Merge[] = [];
   for (const range of Object.keys((ws as unknown as { _merges: Record<string, unknown> })._merges ?? {})) {
     const model = (ws as unknown as { _merges: Record<string, { model: { top: number; left: number; bottom: number; right: number } }> })._merges[range].model;
     merges.push({ row: model.top - top, col: model.left - left, rowSpan: model.bottom - model.top + 1, colSpan: model.right - model.left + 1 });
   }
-  return normalizeSheet({ cells, colWidths, rowHeights, merges });
+  return normalizeSheet({ cells, colWidths, rowHeights, merges, hiddenRows, hiddenCols });
 }
 
 function styleOf(cell: Cell): CellStyle | undefined {

@@ -28,6 +28,32 @@ describe('classifyCells', () => {
       ['text', 'mark', 'blank'],
     ]);
   });
+
+  it('leaves hidden rows and columns out', () => {
+    const sheet = normalizeSheet({ ...text([['Name', 'old', 'A'], ['x', '1', ''], ['gone', '', ''], ['y', '', '']]), hiddenRows: [2], hiddenCols: [1] });
+    expect(classifyCells(sheet)).toEqual([
+      ['text', 'hidden', 'text'],
+      ['text', 'hidden', 'mark'],
+      ['hidden', 'hidden', 'hidden'],
+      ['text', 'hidden', 'mark'],
+    ]);
+  });
+});
+
+describe('hidden rows and columns', () => {
+  it('keep their place in the range but take no room on paper', () => {
+    const sheet = normalizeSheet({ ...text([['Name', 'old', 'A'], ['x', '1', ''], ['gone', '', ''], ['y', '', '']]), hiddenRows: [2], hiddenCols: [1] });
+    const layout = layoutSheet({ ...sampleTemplate(), sheet }, 29);
+    const [page] = layout.pages;
+    expect(page.rows).toEqual([0, 1, 2, 3]);
+    expect(page.grid.rowEdges[3] - page.grid.rowEdges[2]).toBe(0);
+    expect(page.grid.colEdges[2] - page.grid.colEdges[1]).toBe(0);
+    expect(page.cells.some((c) => c.row === 2 || c.col === 1)).toBe(false);
+    expect(page.boxes.map((b) => [b.row, b.col])).toEqual([
+      [1, 2],
+      [3, 2],
+    ]);
+  });
 });
 
 describe('addresses', () => {

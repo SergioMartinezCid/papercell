@@ -94,7 +94,7 @@ export interface PageCell {
   rowSpan: number;
   colSpan: number;
   rect: Rect;
-  kind: Exclude<CellKind, 'covered'>;
+  kind: Exclude<CellKind, 'covered' | 'hidden'>;
   text: string;
   style?: CellStyle;
 }
@@ -146,8 +146,13 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
   const kinds = classifyCells(sheet, template.overrides);
   const content = contentRect(format, qrSide);
   const rowCount = sheet.rowHeights.length;
-  const totalWidthPx = sheet.colWidths.reduce((a, b) => a + b, 0);
-  const totalHeightPx = sheet.rowHeights.reduce((a, b) => a + b, 0);
+  // Hidden rows and columns keep their place in the range, with no size on paper.
+  const hiddenRows = new Set(sheet.hiddenRows);
+  const hiddenCols = new Set(sheet.hiddenCols);
+  const rowHeights = sheet.rowHeights.map((h, r) => (hiddenRows.has(r) ? 0 : h));
+  const colWidths = sheet.colWidths.map((w, c) => (hiddenCols.has(c) ? 0 : w));
+  const totalWidthPx = colWidths.reduce((a, b) => a + b, 0);
+  const totalHeightPx = rowHeights.reduce((a, b) => a + b, 0);
 
   let headerRows = 0;
   while (headerRows < rowCount && !kinds[headerRows].includes('mark')) headerRows++;
@@ -158,7 +163,7 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
   // Stay clear of rounding at the page edges.
   scale *= 0.999;
 
-  const rowMm = (r: number) => Math.round(sheet.rowHeights[r] * scale * 10) / 10;
+  const rowMm = (r: number) => Math.round(rowHeights[r] * scale * 10) / 10;
   const heightOf = (rows: number[]) => rows.reduce((a, r) => a + rowMm(r), 0);
   const header = Array.from({ length: headerRows }, (_, i) => i);
   const repeat = settings.repeatHeader && headerRows > 0 && heightOf(header) < content.h / 2;
@@ -185,11 +190,11 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
   }
 
   // Sizes are rounded before adding them up, so equal rows stay equal (and compress well in the QR).
-  const colEdges = cumulative(sheet.colWidths.map((px) => Math.round(px * scale * 10)));
+  const colEdges = cumulative(colWidths.map((px) => Math.round(px * scale * 10)));
   const originX = Math.round(content.x * 10 + (content.w * 10 - colEdges[colEdges.length - 1]) / 2);
 
   const pages = pageRows.map((rows, index): PageLayout => {
-    const rowEdges = cumulative(rows.map((r) => Math.round(sheet.rowHeights[r] * scale * 10)));
+    const rowEdges = cumulative(rows.map((r) => Math.round(rowHeights[r] * scale * 10)));
     const grid: PageGrid = { originX, originY: Math.round(content.y * 10), colEdges, rowEdges };
     let pageHeaderRows = 0;
     while (pageHeaderRows < Math.min(rows.length, headerRows) && rows[pageHeaderRows] === pageHeaderRows) pageHeaderRows++;
@@ -198,7 +203,7 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
     rows.forEach((row, pageRow) => {
       sheet.cells[row].forEach((cell, col) => {
         const kind = kinds[row][col];
-        if (kind === 'covered') return;
+        if (kind === 'covered' || kind === 'hidden') return;
         const merge = sheet.merges.find((m) => m.row === row && m.col === col);
         const lastPageRow = merge ? lastRowOnPage(rows, pageRow, merge.row + merge.rowSpan - 1) : pageRow;
         const rowSpan = lastPageRow - pageRow + 1;

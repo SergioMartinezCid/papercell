@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import { detectDelimiter, parseDelimited, sheetFromDelimited } from '../src/import/delimited';
+import { restoreHiddenLines } from '../src/import/hidden';
 import { sheetFromHtmlTable } from '../src/import/html';
 
 describe('delimited text', () => {
@@ -78,5 +79,45 @@ describe('HTML clipboard tables', () => {
 
   it('returns null without a table', () => {
     expect(sheetFromHtmlTable(new DOMParser().parseFromString('<p>hi</p>', 'text/html'))).toBeNull();
+  });
+});
+
+describe('hidden rows and columns', () => {
+  const parse = (html: string) => sheetFromHtmlTable(new DOMParser().parseFromString(`<table>${html}</table>`, 'text/html'))!;
+  const texts = (sheet: { cells: Array<Array<{ text: string }>> }) => sheet.cells.map((r) => r.map((c) => c.text));
+
+  it('puts back the rows and columns LibreOffice leaves out of the HTML', () => {
+    // Row 3 and column C are hidden: the HTML lacks them, the plain text has them.
+    const sheet = parse(`<tr><td>h1</td><td>h2</td><td>h4</td></tr>
+      <tr><td>a</td><td><comment>[##]</comment><br></td><td>d2</td></tr>
+      <tr><td>x</td><td>[#,#]</td><td><br></td></tr>`);
+    const text = parseDelimited('h1\th2\th3\th4\na\t\tc2\td2\nhidden\tb3\tc3\td3\nx\t[#,#]\tc4\t', '\t');
+    const restored = restoreHiddenLines(sheet, text)!;
+    expect(texts(restored)).toEqual([
+      ['h1', 'h2', 'h3', 'h4'],
+      ['a', '', 'c2', 'd2'],
+      ['hidden', 'b3', 'c3', 'd3'],
+      ['x', '[#,#]', 'c4', ''],
+    ]);
+    expect(restored.hiddenRows).toEqual([2]);
+    expect(restored.hiddenCols).toEqual([2]);
+    expect(restored.cells[1][1].note).toBe('[##]');
+  });
+
+  it('stretches merges over the hidden lines inside them', () => {
+    const sheet = parse('<tr><td colspan="2">m</td></tr><tr><td>x</td><td>y</td></tr>');
+    const restored = restoreHiddenLines(sheet, [['m', '', ''], ['x', 'hid', 'y']])!;
+    expect(restored.hiddenCols).toEqual([1]);
+    expect(restored.merges).toEqual([{ row: 0, col: 0, rowSpan: 1, colSpan: 3 }]);
+  });
+
+  it('gives up when a hidden line could be in more than one place', () => {
+    const sheet = parse('<tr><td>a</td><td></td></tr>');
+    expect(restoreHiddenLines(sheet, [['a', '', '']])).toBeNull();
+  });
+
+  it('keeps the sheet when nothing is missing', () => {
+    const sheet = parse('<tr><td>a</td><td>b</td></tr>');
+    expect(restoreHiddenLines(sheet, [['a', 'b']])).toBe(sheet);
   });
 });
