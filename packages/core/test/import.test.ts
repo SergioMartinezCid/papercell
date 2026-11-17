@@ -77,6 +77,34 @@ describe('HTML clipboard tables', () => {
     ]);
   });
 
+  it('reads Excel formatting from its style rules and hidden rows from their style', () => {
+    // Shape of what Excel puts on the clipboard: formatting in class rules, over a rule for every cell.
+    const excel = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><style><!--table {mso-displayed-decimal-separator:"\\.";}
+      td {padding-top:1px; color:black; font-size:11.0pt; font-weight:400; font-style:normal; border:none;}
+      .xl65 {font-weight:700;}
+      .xl66 {color:#ED7D31;}
+      .xl67 {background:#ED7D31; mso-pattern:black none;}
+      .xl68 {font-style:italic;}
+      --></style></head><body><table border=0 cellpadding=0 cellspacing=0 width=174 style='border-collapse: collapse;width:130pt'>
+      <!--StartFragment-->
+      <col width=87 span=2 style='width:65pt'>
+      <tr height=21 style='height:16.0pt'><td height=21 class=xl65 width=87>Name</td><td class=xl67>[ ]</td></tr>
+      <tr height=0 style='display:none'><td>gone</td><td></td></tr>
+      <tr height=21 style='height:16.0pt'><td class=xl66>red</td><td class="xl68">it</td></tr>
+      <!--EndFragment--></table></body></html>`;
+    const sheet = sheetFromHtmlTable(new DOMParser().parseFromString(excel, 'text/html'))!;
+    expect(sheet.cells.map((r) => r.map((c) => c.text))).toEqual([
+      ['Name', '[ ]'],
+      ['gone', ''],
+      ['red', 'it'],
+    ]);
+    expect(sheet.hiddenRows).toEqual([1]);
+    expect(sheet.cells[0][0].style).toEqual({ bold: true, fontSize: 11 });
+    expect(sheet.cells[0][1].style).toEqual({ background: '#ed7d31', fontSize: 11 });
+    expect(sheet.cells[2][0].style).toEqual({ color: '#ed7d31', fontSize: 11 });
+    expect(sheet.cells[2][1].style).toEqual({ italic: true, fontSize: 11 });
+  });
+
   it('returns null without a table', () => {
     expect(sheetFromHtmlTable(new DOMParser().parseFromString('<p>hi</p>', 'text/html'))).toBeNull();
   });
