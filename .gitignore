@@ -7,3 +7,5 @@ coverage/
 .vite/
 # Output of the synthetic benchmarks (regenerate with pnpm bench:backgrounds)
 packages/core/bench/out/
+__pycache__/
+*.pyc

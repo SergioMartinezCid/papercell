@@ -65,6 +65,19 @@ describe('buildOutput', () => {
     expect(out.unknownCells).toBe(0);
   });
 
+  it('outputs number fields with the boxes', () => {
+    const numbers = [
+      { row: 1, col: 0, value: '7,5' },
+      { row: 2, col: 0, value: '' },
+    ];
+    const out = buildOutput({ ...base, numbers }, { shape: 'boxes', markedValue: 'x', emptyValue: '-' });
+    expect(out.values).toEqual([
+      ['7,5', 'x', '-'],
+      ['', '-', 'x'],
+    ]);
+    expect(out.topLeft).toEqual({ row: 5, col: 1 });
+  });
+
   it('fills the whole range, copying known text and counting unknown cells', () => {
     const texts = [
       ['Item', 'A', 'B'],

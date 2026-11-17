@@ -80,7 +80,7 @@ function strokes(img: RgbImage, area: Rect, spacing: number, gapChance: number, 
 }
 
 /** A straight pen stroke of width `pen` between two points (mm). */
-function line(img: RgbImage, a: Point, b: Point, pen: number, ink: Rgb, p: number): void {
+export function line(img: RgbImage, a: Point, b: Point, pen: number, ink: Rgb, p: number): void {
   const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.1));
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;

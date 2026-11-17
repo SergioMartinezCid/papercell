@@ -8,6 +8,7 @@ export interface StoredScan {
   addedAt: number;
   scan: ScanSummary;
   decisions: Record<string, boolean>;
+  values?: Record<string, string>;
   /** The straightened page (JPEG). */
   preview: Blob;
 }

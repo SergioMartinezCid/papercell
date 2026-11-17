@@ -90,6 +90,16 @@ describe('pages printed by earlier versions', () => {
         // Boxes are found where expected, not rescued by the reader's search: a frame 1 mm off needs over 1.3 mm.
         const maxShift = Math.max(...outcome.scan.boxes.map((b) => Math.hypot(b.shift.x, b.shift.y)));
         expect(maxShift).toBeLessThan(0.8);
+        // Digit boxes too, and empty ones read as empty.
+        const printed = new Map((fixture.numbers ?? []).map((n) => [`${n.row},${n.col}`, n.boxes]));
+        expect(outcome.scan.numbers).toHaveLength(printed.size);
+        for (const n of outcome.scan.numbers) {
+          expect(n.value).toBe('');
+          n.digits.forEach((d, j) => {
+            const at = printed.get(`${n.row},${n.col}`)![j];
+            expect(Math.hypot(d.box.x - at.x, d.box.y - at.y)).toBeLessThan(0.8);
+          });
+        }
       });
     });
   }

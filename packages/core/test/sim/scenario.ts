@@ -3,11 +3,13 @@ import { buildPrintable } from '../../src/drawing';
 import { DEFAULT_SETTINGS, type LayoutSettings, type Template } from '../../src/layout';
 import { scanPage } from '../../src/scan/scanPage';
 import { normalizeSheet, type SheetCell } from '../../src/sheet';
+import type { Rect } from '../../src/layout';
+import { drawDigit } from './handwriting';
 import { drawMark, drawSpeck, INKS, type MarkStyle } from './marks';
 import type { RgbaImage } from '../../src/scan/image';
 import { photograph, randomPhotoParams, type PhotoParams } from './photo';
 import { mulberry32, pick, type Rng } from './random';
-import { rasterize, type Rgb } from './raster';
+import { rasterize, type Rgb, type RgbImage } from './raster';
 
 export interface SampleOptions {
   rows?: number;
@@ -157,4 +159,80 @@ export function numberTemplate(o: { rows?: number; tokens?: string[]; settings?:
     settings: { ...DEFAULT_SETTINGS, title: 'Numbers', ...o.settings },
     anchor: { row: 0, col: 0 },
   };
+}
+
+export type DigitWriter = (img: RgbImage, box: Rect, digit: number, ink: Rgb, p: number, rng: Rng) => void;
+
+export interface NumberCaseOptions {
+  template: Template;
+  seed: number;
+  difficulty: 'easy' | 'hard';
+  ink?: Rgb;
+  /** How digits are written; stroke digits by default. */
+  writer?: DigitWriter;
+  /** Share of fields with something written in them (0.9 by default). */
+  written?: number;
+  renderPxPerMm?: number;
+  photo?: Partial<PhotoParams>;
+  onPhoto?: (photo: RgbaImage, params: PhotoParams) => void;
+}
+
+export interface NumberCaseResult {
+  ok: boolean;
+  error?: string;
+  fields: number;
+  /** Value read differs from the one written. */
+  wrong: number;
+  /** Wrong and not flagged for review. */
+  silentWrong: number;
+  uncertain: number;
+  mistakes: Array<{ row: number; col: number; written: string; read: string; uncertain: boolean; confidences: number[] }>;
+}
+
+/** Writes numbers in every number field of the first page, photographs it and compares what is read. */
+export function runNumberCase(c: NumberCaseOptions): NumberCaseResult {
+  const rng = mulberry32(c.seed);
+  const p = c.renderPxPerMm ?? 8;
+  const page = buildPrintable(c.template).pages[0];
+  const image = rasterize(page.drawing, p);
+  const ink = c.ink ?? pick(rng, [INKS.black, INKS.blue]);
+  const write = c.writer ?? drawDigit;
+  const truth = new Map<string, string>();
+  for (const n of page.layout.numbers) {
+    const { digits, decimals, separator } = n.field;
+    let whole = '';
+    let fraction = '';
+    if (rng() < (c.written ?? 0.9)) {
+      const count = rng() < 0.7 ? digits : 1 + Math.floor(rng() * digits);
+      const offset = rng() < 0.6 ? digits - count : 0;
+      for (let i = 0; i < count; i++) {
+        const d = i === 0 && count > 1 ? 1 + Math.floor(rng() * 9) : Math.floor(rng() * 10);
+        whole += d;
+        write(image, n.boxes[offset + i], d, ink, p, rng);
+      }
+      for (let i = 0; i < decimals; i++) {
+        const d = Math.floor(rng() * 10);
+        fraction += d;
+        write(image, n.boxes[digits + i], d, ink, p, rng);
+      }
+    }
+    truth.set(`${n.row},${n.col}`, fraction ? `${whole}${separator}${fraction}` : whole);
+  }
+  const params = { ...randomPhotoParams(rng, c.difficulty), ...c.photo };
+  const photo = photograph(image, p, params, rng);
+  c.onPhoto?.(photo, params);
+  const outcome = scanPage(photo);
+  const result: NumberCaseResult = { ok: outcome.ok, fields: 0, wrong: 0, silentWrong: 0, uncertain: 0, mistakes: [] };
+  if (!outcome.ok) return { ...result, error: outcome.error };
+  for (const n of outcome.scan.numbers) {
+    result.fields++;
+    const written = truth.get(`${n.row},${n.col}`) ?? '';
+    if (n.uncertain) result.uncertain++;
+    if (n.value !== written) {
+      result.wrong++;
+      if (!n.uncertain) result.silentWrong++;
+      result.mistakes.push({ row: n.row, col: n.col, written, read: n.value, uncertain: n.uncertain, confidences: n.digits.map((d) => Math.round(d.confidence * 100) / 100) });
+    }
+  }
+  return result;
 }

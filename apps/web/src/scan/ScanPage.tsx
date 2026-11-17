@@ -10,7 +10,7 @@ import { findTemplate, type StoredTemplate } from '../lib/templates';
 import { OutputPanel } from './OutputPanel';
 import { ReviewModal } from './ReviewModal';
 import { scanImage } from './scanner';
-import { isMarked, needsCheck, type ScanItem } from './types';
+import { checksLeft, isMarked, type ScanItem } from './types';
 
 interface Props {
   active: boolean;
@@ -61,7 +61,7 @@ export function ScanPage({ active, mobile }: Props) {
     const now = new Map(items.filter((i) => i.status === 'done').map((i) => [i.id, i]));
     for (const [id, item] of now) {
       if (before.get(id) === item || !item.scan || !item.preview) continue;
-      void saveScan({ id, name: item.name, addedAt: item.addedAt, scan: item.scan, decisions: item.decisions, preview: item.preview });
+      void saveScan({ id, name: item.name, addedAt: item.addedAt, scan: item.scan, decisions: item.decisions, values: item.values, preview: item.preview });
     }
     for (const id of before.keys()) if (!now.has(id)) void deleteScan(id);
     saved.current = now;
@@ -142,6 +142,10 @@ export function ScanPage({ active, mobile }: Props) {
 
   const decide = useCallback((item: ScanItem, row: number, col: number, marked: boolean) => {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, decisions: { ...i.decisions, [`${row},${col}`]: marked } } : i)));
+  }, []);
+
+  const setValue = useCallback((item: ScanItem, row: number, col: number, value: string) => {
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, values: { ...i.values, [`${row},${col}`]: value } } : i)));
   }, []);
 
   const updateOptions = (patch: Partial<OutputOptions>) =>
@@ -326,7 +330,7 @@ export function ScanPage({ active, mobile }: Props) {
                 <SimpleGrid type="container" cols={{ base: 2, '700px': 3, '900px': 4 }} spacing="sm">
                   {g.pages.map((p) => {
                     const marked = p.scan!.boxes.filter((b) => isMarked(p, b)).length;
-                    const check = p.scan!.boxes.filter((b) => needsCheck(p, b)).length;
+                    const check = checksLeft(p);
                     return (
                       <Paper key={p.id} withBorder radius="sm" p={6}>
                         <Box style={{ cursor: 'pointer' }} onClick={() => setReviewId(p.id)}>
@@ -358,7 +362,7 @@ export function ScanPage({ active, mobile }: Props) {
         );
       })}
 
-      <ReviewModal key={reviewId ?? 'none'} item={reviewItem} mobile={mobile} onClose={() => setReviewId(null)} onDecide={decide} />
+      <ReviewModal key={reviewId ?? 'none'} item={reviewItem} mobile={mobile} onClose={() => setReviewId(null)} onDecide={decide} onValue={setValue} />
     </Stack>
   );
 }
