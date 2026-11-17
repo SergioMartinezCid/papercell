@@ -40,7 +40,8 @@ function worksheetToSheet(ws: Worksheet): Sheet {
     for (let c = left; c <= right; c++) {
       const cell = ws.getCell(r, c);
       const isSlave = cell.isMerged && cell.master.address !== cell.address;
-      out.push(isSlave ? { text: '' } : { text: cell.text ?? '', style: styleOf(cell) });
+      const note = noteText(cell.note);
+      out.push(isSlave ? { text: '' } : { text: cell.text ?? '', style: styleOf(cell), ...(note ? { note } : {}) });
     }
     cells.push(out);
   }
@@ -74,6 +75,13 @@ function styleOf(cell: Cell): CellStyle | undefined {
     if (bg && bg !== '#ffffff') style.background = bg;
   }
   return Object.keys(style).length ? style : undefined;
+}
+
+/** A cell note as plain text (ExcelJS gives either a string or rich text). */
+function noteText(note: Cell['note']): string | undefined {
+  if (!note) return undefined;
+  const text = typeof note === 'string' ? note : (note.texts ?? []).map((t) => t.text).join('');
+  return text.trim() || undefined;
 }
 
 function argb(value: string | undefined): string | undefined {

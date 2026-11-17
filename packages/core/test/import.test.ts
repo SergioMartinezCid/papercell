@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import { detectDelimiter, parseDelimited, sheetFromDelimited } from '../src/import/delimited';
+import { notesFromGoogleSheets } from '../src/import/googleSheets';
 import { restoreHiddenLines } from '../src/import/hidden';
 import { sheetFromHtmlTable } from '../src/import/html';
 
@@ -147,5 +148,37 @@ describe('hidden rows and columns', () => {
   it('keeps the sheet when nothing is missing', () => {
     const sheet = parse('<tr><td>a</td><td>b</td></tr>');
     expect(restoreHiddenLines(sheet, [['a', 'b']])).toBe(sheet);
+  });
+});
+
+describe('Google Sheets notes', () => {
+  it('reads the notes of its own clipboard type, cell by cell', () => {
+    // Shapes of what Google Sheets copies (other fields trimmed): a 2×2 range with a note on its first cell,
+    // and a 3×2 range with notes on the second, fourth and sixth cells and a value in the third.
+    const first = '{"1":1,"2":[450,-3,194],"3":{},"5":[-4,0],"12":[-4,1],"13":[-4,1],"14":["abc"],"15":{"1":2,"2":2},"20":4}';
+    expect(notesFromGoogleSheets(first)).toEqual([
+      ['abc', undefined],
+      [undefined, undefined],
+    ]);
+    const second =
+      '{"1":1,"2":[194,450,195,450,194,450],"3":{"1":[2],"4":["hello"]},"5":[-6,0],"12":[-6,1],"13":[-6,1],"14":["[-]","[##]\\n","abc"],"15":{"1":2,"2":3},"20":6}';
+    expect(notesFromGoogleSheets(second)).toEqual([
+      [undefined, '[-]', undefined],
+      ['[##]', undefined, 'abc'],
+    ]);
+  });
+
+  it('expands repeated values', () => {
+    const json = '{"2":[194,-2,450,-3,194],"14":[-2,"[-]"],"15":{"1":2,"2":3}}';
+    expect(notesFromGoogleSheets(json)).toEqual([
+      [undefined, '[-]', '[-]'],
+      [undefined, undefined, undefined],
+    ]);
+  });
+
+  it('gives up on data it does not know', () => {
+    expect(notesFromGoogleSheets('')).toBeNull();
+    expect(notesFromGoogleSheets('{"14":["a"]}')).toBeNull();
+    expect(notesFromGoogleSheets('{"2":[194,194],"14":["a"],"15":{"1":1,"2":2}}')).toBeNull();
   });
 });

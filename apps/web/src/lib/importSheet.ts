@@ -1,5 +1,14 @@
 /** Getting a sheet from the clipboard or a file. */
-import { parseDelimited, restoreHiddenLines, sheetFromDelimited, sheetFromHtmlTable, type Sheet } from '@papercell/core';
+import {
+  GOOGLE_SHEETS_CLIPBOARD_TYPE,
+  notesFromGoogleSheets,
+  parseDelimited,
+  restoreHiddenLines,
+  sheetFromDelimited,
+  sheetFromHtmlTable,
+  withNotes,
+  type Sheet,
+} from '@papercell/core';
 
 export interface ClipboardImport {
   sheet: Sheet;
@@ -12,7 +21,10 @@ export function sheetFromClipboard(data: DataTransfer | null): ClipboardImport |
   if (!data) return null;
   const text = data.getData('text/plain').replace(/\r?\n$/, '');
   const html = data.getData('text/html');
-  const sheet = html ? sheetFromHtmlTable(new DOMParser().parseFromString(html, 'text/html')) : null;
+  let sheet = html ? sheetFromHtmlTable(new DOMParser().parseFromString(html, 'text/html')) : null;
+  // Google Sheets copies notes only in a clipboard type of its own.
+  const notes = sheet && notesFromGoogleSheets(data.getData(GOOGLE_SHEETS_CLIPBOARD_TYPE));
+  if (sheet && notes) sheet = withNotes(sheet, notes);
   if (sheet) {
     // Spreadsheets copy plain text as tab-separated values, which still has hidden rows and columns.
     if (!text.trim()) return { sheet };
