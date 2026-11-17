@@ -17,8 +17,9 @@ import type { NumberField } from './tokens';
  * The version new pages are printed with.
  * - 1: boxes.
  * - 2: boxes and number fields (one box per digit).
+ * - 3: also letter fields (one box per letter) and writing lines.
  */
-export const PRINT_VERSION = 2;
+export const PRINT_VERSION = 3;
 
 /** Paper formats by code (0–3); the code also selects the marker ids. */
 const PAPER_FORMATS: ReadonlyArray<{ paper: PaperSize; orientation: Orientation }> = [
@@ -107,6 +108,7 @@ export const MARKER_CODES: readonly number[] = [
 const BOX_GEOMETRY: Record<number, { fraction: number; max: number }> = {
   1: { fraction: 0.68, max: 7 },
   2: { fraction: 0.68, max: 7 },
+  3: { fraction: 0.68, max: 7 },
 };
 
 /** The printed box of a cell. Shared by printing and scanning. */
@@ -118,12 +120,14 @@ export function boxInCell(cell: Rect, version: number = PRINT_VERSION): Rect {
 }
 
 /**
- * Digit boxes of a number field, by print format version: boxes `height` of the cell high (at most `max` mm),
+ * Digit boxes of a number field (and, from version 3, letter boxes), by print format version: boxes `height`
+ * of the cell high (at most `max` mm),
  * `aspect` times as wide as high, `gap` box widths apart, with a slot `separator` box widths wide for the
  * decimal separator. A row of boxes wider than `fill` of the cell is shrunk to fit.
  */
 const DIGIT_GEOMETRY: Record<number, { height: number; max: number; aspect: number; gap: number; separator: number; fill: number }> = {
   2: { height: 0.78, max: 9, aspect: 0.8, gap: 0.2, separator: 0.55, fill: 0.92 },
+  3: { height: 0.78, max: 9, aspect: 0.8, gap: 0.2, separator: 0.55, fill: 0.92 },
 };
 
 export interface DigitBoxes {
@@ -160,4 +164,26 @@ export function digitBoxes(cell: Rect, field: NumberField, version: number = PRI
     x += w;
   }
   return { boxes, separator };
+}
+
+/** Where the boxes of a letter field are printed in its cell: like the digits of a number without decimals. */
+export function letterBoxes(cell: Rect, count: number, version: number = PRINT_VERSION): Rect[] {
+  if (version < 3) throw new RangeError(`Print format version ${version} has no letter fields`);
+  return digitBoxes(cell, { digits: count, decimals: 0, separator: '' }, version).boxes;
+}
+
+/**
+ * Writing lines, by print format version: a line `at` of the cell's height from its top, `inset` mm (at most
+ * `insetShare` of the cell's width) in from either side.
+ */
+const LINE_GEOMETRY: Record<number, { at: number; inset: number; insetShare: number }> = {
+  3: { at: 0.8, inset: 1.5, insetShare: 0.1 },
+};
+
+/** The writing line printed in a cell, as a segment from (x, y) `w` mm long. Shared by printing and scanning. */
+export function writingLine(cell: Rect, version: number = PRINT_VERSION): { x: number; y: number; w: number } {
+  const g = LINE_GEOMETRY[version];
+  if (!g) throw new RangeError(`Print format version ${version} has no writing lines`);
+  const inset = Math.min(g.inset, cell.w * g.insetShare);
+  return { x: cell.x + inset, y: cell.y + cell.h * g.at, w: cell.w - 2 * inset };
 }

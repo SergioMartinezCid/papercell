@@ -45,14 +45,19 @@ export interface Sheet {
  * - `text`: printed, never scanned.
  * - `mark`: printed as an empty box and read back as marked / empty.
  * - `number`: printed as a row of boxes, one per digit, and read back as the number written in them.
+ * - `letters`: printed as a row of boxes, one per capital letter, and read back as the text written in them.
+ * - `line`: printed as a line to write on; what is written there is shown to be typed in, not read.
  * - `blank`: printed as an empty cell and not scanned.
  * - `covered`: hidden under a merged cell.
  * - `hidden`: in a row or column hidden in the spreadsheet.
  */
-export type CellKind = 'text' | 'mark' | 'number' | 'blank' | 'covered' | 'hidden';
+export type CellKind = 'text' | 'mark' | 'number' | 'letters' | 'line' | 'blank' | 'covered' | 'hidden';
+
+/** Kinds of cell that are filled in on paper and read back. */
+export const FIELD_KINDS: ReadonlySet<CellKind> = new Set(['mark', 'number', 'letters', 'line']);
 
 /** A kind chosen by hand in the app for a cell that has no text. */
-export type KindOverride = 'mark' | 'blank' | { number: NumberField };
+export type KindOverride = 'mark' | 'blank' | 'line' | { number: NumberField } | { letters: number };
 
 /** Per-cell overrides chosen by the user, keyed by `cellKey(row, col)`. */
 export type KindOverrides = Record<string, KindOverride>;
@@ -120,6 +125,8 @@ export interface CellPlan {
   kinds: CellKind[][];
   /** The field of every `number` cell, keyed by `cellKey(row, col)`. */
   fields: Map<string, NumberField>;
+  /** How many boxes every `letters` cell has, keyed by `cellKey(row, col)`. */
+  letters: Map<string, number>;
 }
 
 /** The kind of every cell (see `planCells`). */
@@ -148,6 +155,7 @@ export function planCells(sheet: Sheet, overrides: KindOverrides = {}): CellPlan
     }
   }
   const fields = new Map<string, NumberField>();
+  const letters = new Map<string, number>();
   kinds.forEach((row, r) => {
     const spacer = !row.some((k) => k === 'text');
     row.forEach((kind, c) => {
@@ -156,15 +164,22 @@ export function planCells(sheet: Sheet, overrides: KindOverrides = {}): CellPlan
       const override = overrides[key];
       const token = tokens[r][c];
       if (override !== undefined) {
-        if (typeof override === 'object') fields.set(key, override.number);
-        row[c] = typeof override === 'object' ? 'number' : override;
+        if (typeof override !== 'object') row[c] = override;
+        else if ('number' in override) {
+          fields.set(key, override.number);
+          row[c] = 'number';
+        } else {
+          letters.set(key, override.letters);
+          row[c] = 'letters';
+        }
       } else if (token) {
         if (token.kind === 'number') fields.set(key, token.field);
+        if (token.kind === 'letters') letters.set(key, token.count);
         row[c] = token.kind;
       } else row[c] = spacer ? 'blank' : 'mark';
     });
   });
-  return { kinds, fields };
+  return { kinds, fields, letters };
 }
 
 export function countMarks(kinds: CellKind[][]): number {

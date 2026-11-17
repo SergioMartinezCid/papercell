@@ -4,7 +4,7 @@
  */
 import type { PageGrid, PageLayout, Template } from './layout';
 import { PRINT_VERSION } from './spec';
-import { sameField, type NumberField } from './tokens';
+import { MAX_FIELD_LETTERS, sameField, type NumberField } from './tokens';
 
 export interface PayloadBox {
   pageRow: number;
@@ -15,6 +15,10 @@ export interface PayloadBox {
 
 export interface PayloadNumber extends PayloadBox {
   field: NumberField;
+}
+
+export interface PayloadLetters extends PayloadBox {
+  count: number;
 }
 
 export interface PagePayload {
@@ -38,6 +42,10 @@ export interface PagePayload {
   boxes: PayloadBox[];
   /** Number fields (from version 2). */
   numbers?: PayloadNumber[];
+  /** Letter fields (from version 3). */
+  letters?: PayloadLetters[];
+  /** Writing lines (from version 3). */
+  lines?: PayloadBox[];
 }
 
 export function pagePayload(template: Template, page: PageLayout, templateId: number): PagePayload {
@@ -56,6 +64,8 @@ export function pagePayload(template: Template, page: PageLayout, templateId: nu
     bodyStart: page.rows[page.headerRows] ?? page.rows.length,
     boxes: page.boxes.map(({ pageRow, col, rowSpan, colSpan }) => ({ pageRow, col, rowSpan, colSpan })),
     numbers: page.numbers.map(({ pageRow, col, rowSpan, colSpan, field }) => ({ pageRow, col, rowSpan, colSpan, field })),
+    letters: page.letters.map(({ pageRow, col, rowSpan, colSpan, count }) => ({ pageRow, col, rowSpan, colSpan, count })),
+    lines: page.lines.map(({ pageRow, col, rowSpan, colSpan }) => ({ pageRow, col, rowSpan, colSpan })),
   };
 }
 
@@ -84,7 +94,10 @@ export function encodePayload(p: PagePayload): string {
   w.varint(p.bodyStart);
 
   writeCells(w, p.boxes, rowCount, p.sourceCols);
-  if (p.version >= 2) writeNumbers(w, p.numbers ?? [], rowCount, p.sourceCols);
+  // From version 3, which field each cell has is written column by column, in runs.
+  const order = p.version >= 3 ? 'columns' : 'cells';
+  if (p.version >= 2) writeNumbers(w, p.numbers ?? [], rowCount, p.sourceCols, order);
+  if (p.version >= 3) writeTexts(w, p.letters ?? [], p.lines ?? [], rowCount, p.sourceCols, order);
   return base45Encode(w.bytes());
 }
 
@@ -104,26 +117,62 @@ function writeCells(w: ByteWriter, cells: PayloadBox[], rowCount: number, source
 
 const SEPARATORS = ['', '.', ','] as const;
 
-/**
- * Version 2: the distinct fields, then the number cells like the boxes, then (with several fields) which
- * field each cell has, in reading order.
- */
-function writeNumbers(w: ByteWriter, numbers: PayloadNumber[], rowCount: number, sourceCols: number): void {
-  const fields: NumberField[] = [];
-  const ordered = [...numbers].sort((a, b) => a.pageRow - b.pageRow || a.col - b.col);
-  const index = ordered.map((n) => {
-    const i = fields.findIndex((f) => sameField(f, n.field));
-    return i >= 0 ? i : fields.push(n.field) - 1;
-  });
-  w.varint(fields.length);
-  for (const f of fields) {
+/** Version 2: number fields (see `writeFields`). */
+function writeNumbers(w: ByteWriter, numbers: PayloadNumber[], rowCount: number, sourceCols: number, order: FieldOrder): void {
+  writeFields(w, numbers, sameField, rowCount, sourceCols, order, (f) => {
     w.varint(f.digits);
     w.varint(f.decimals);
     w.u8(SEPARATORS.indexOf(f.separator));
-  }
+  });
+}
+
+/** Version 3: letter fields and writing lines, as fields that are a number of letters, 0 for a line. */
+function writeTexts(w: ByteWriter, letters: PayloadLetters[], lines: PayloadBox[], rowCount: number, sourceCols: number, order: FieldOrder): void {
+  const cells = [...letters.map(({ count, ...c }) => ({ ...c, field: count })), ...lines.map((c) => ({ ...c, field: 0 }))];
+  writeFields(w, cells, (a, b) => a === b, rowCount, sourceCols, order, (count) => w.varint(count));
+}
+
+/**
+ * How `writeFields` says which field each cell has: `cells`, one index per cell in reading order (version 2);
+ * `columns`, runs of equal indices with the cells taken column by column (from version 3), as fields mostly
+ * change from column to column.
+ */
+type FieldOrder = 'cells' | 'columns';
+
+const byReading = (a: PayloadBox, b: PayloadBox) => a.pageRow - b.pageRow || a.col - b.col;
+const byColumn = (a: PayloadBox, b: PayloadBox) => a.col - b.col || a.pageRow - b.pageRow;
+
+/**
+ * Cells that each have a field: the distinct fields, then the cells like the boxes, then (with several
+ * fields) which field each cell has (see `FieldOrder`).
+ */
+function writeFields<F>(
+  w: ByteWriter,
+  cells: Array<PayloadBox & { field: F }>,
+  same: (a: F, b: F) => boolean,
+  rowCount: number,
+  sourceCols: number,
+  order: FieldOrder,
+  writeField: (field: F) => void,
+): void {
+  const fields: F[] = [];
+  const indexed = [...cells].sort(order === 'cells' ? byReading : byColumn);
+  const index = indexed.map((c) => {
+    const i = fields.findIndex((f) => same(f, c.field));
+    return i >= 0 ? i : fields.push(c.field) - 1;
+  });
+  w.varint(fields.length);
+  for (const f of fields) writeField(f);
   if (fields.length === 0) return;
-  writeCells(w, ordered, rowCount, sourceCols);
-  if (fields.length > 1) for (const i of index) w.varint(i);
+  writeCells(w, [...cells].sort(byReading), rowCount, sourceCols);
+  if (fields.length === 1) return;
+  if (order === 'cells') for (const i of index) w.varint(i);
+  else {
+    for (const [run, i] of runs(index.map(String))) {
+      w.varint(run);
+      w.varint(Number(i));
+    }
+  }
 }
 
 /**
@@ -135,6 +184,7 @@ export function decodePayload(text: string): PagePayload {
   const version = r.u8();
   if (version === 1) return decodeV1(r);
   if (version === 2) return decodeV2(r);
+  if (version === 3) return decodeV3(r);
   if (version > PRINT_VERSION) throw new PayloadError(`Page code version ${version} is newer than this reader`, 'newer');
   throw new PayloadError(`Unknown page code version ${version}`);
 }
@@ -198,19 +248,60 @@ function decodeV1(r: ByteReader): PagePayload {
 /** Version 2 is version 1 followed by the number fields (see `writeNumbers`). */
 function decodeV2(r: ByteReader): PagePayload {
   const base = decodeV1(r);
-  const rowCount = base.grid.rowEdges.length - 1;
-  const fieldCount = r.varint();
-  const fields: NumberField[] = Array.from({ length: fieldCount }, () => {
+  return { ...base, version: 2, numbers: readNumbers(r, base, 'cells') };
+}
+
+/** Version 3 is version 1 followed by the number fields, then the letter fields and writing lines (see `writeTexts`). */
+function decodeV3(r: ByteReader): PagePayload {
+  const base = decodeV1(r);
+  const numbers = readNumbers(r, base, 'columns');
+  const texts = readFields(r, base, 'columns', 'letter field', () => {
+    const count = r.varint();
+    if (count > MAX_FIELD_LETTERS) throw new PayloadError('Corrupt letter field');
+    return count;
+  });
+  return {
+    ...base,
+    version: 3,
+    numbers,
+    letters: texts.filter((t) => t.field > 0).map(({ field, ...c }) => ({ ...c, count: field })),
+    lines: texts.filter((t) => t.field === 0).map(({ field: _, ...c }) => c),
+  };
+}
+
+function readNumbers(r: ByteReader, base: PagePayload, order: FieldOrder): PayloadNumber[] {
+  return readFields(r, base, order, 'number field', (): NumberField => {
     const digits = r.varint();
     const decimals = r.varint();
     const separator = SEPARATORS[r.u8()];
     if (separator === undefined || digits < 1 || (decimals > 0) !== (separator !== '')) throw new PayloadError('Corrupt number field');
     return { digits, decimals, separator };
   });
-  const cells = fieldCount ? readCells(r, rowCount, base.sourceCols) : [];
-  const numbers = cells.map((c) => ({ ...c, field: fields[fieldCount > 1 ? r.varint() : 0] }));
-  if (numbers.some((n) => !n.field)) throw new PayloadError('Corrupt number field');
-  return { ...base, version: 2, numbers };
+}
+
+/** Cells with fields, in reading order (see `writeFields`). */
+function readFields<F>(r: ByteReader, base: PagePayload, order: FieldOrder, what: string, readField: () => F): Array<PayloadBox & { field: F }> {
+  const fieldCount = r.varint();
+  const fields = Array.from({ length: fieldCount }, readField);
+  const cells = fieldCount ? readCells(r, base.grid.rowEdges.length - 1, base.sourceCols) : [];
+  const indexed = order === 'cells' ? cells : [...cells].sort(byColumn);
+  const index: number[] = [];
+  if (fieldCount === 1) index.push(...indexed.map(() => 0));
+  else if (order === 'cells') for (let k = 0; k < indexed.length; k++) index.push(r.varint());
+  else {
+    while (index.length < indexed.length) {
+      const run = r.varint();
+      const i = r.varint();
+      if (run === 0 || index.length + run > indexed.length) throw new PayloadError(`Corrupt ${what}`);
+      for (let k = 0; k < run; k++) index.push(i);
+    }
+  }
+  const field = new Map(indexed.map((c, k) => [c, index[k]]));
+  return cells.map((c) => {
+    const i = field.get(c)!;
+    if (i >= fieldCount) throw new PayloadError(`Corrupt ${what}`);
+    return { ...c, field: fields[i] };
+  });
 }
 
 function readCells(r: ByteReader, rowCount: number, sourceCols: number): PayloadBox[] {

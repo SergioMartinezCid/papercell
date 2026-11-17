@@ -47,8 +47,8 @@ export interface PrintableSheet {
 const GRID_COLOR = '#b7b7b7';
 const BOX_COLOR = '#262626';
 /**
- * Digit boxes are light, so that the reader can tell the printed outline from the writing and keep the
- * strokes written over it.
+ * Digit and letter boxes and writing lines are light, so that the reader can tell what is printed from the
+ * writing and keep the strokes written over it.
  */
 const DIGIT_BOX_COLOR = '#b3b3b3';
 const BOX_STROKE = 0.3;
@@ -100,8 +100,11 @@ export function drawPage(template: Template, page: PageLayout, qr: boolean[][]):
   for (const box of page.boxes) {
     if (coloured.has(`${box.pageRow},${box.col}`)) shapes.push({ kind: 'rect', ...clearArea(box.cell, box.box), fill: '#ffffff' });
   }
-  for (const num of page.numbers) {
-    if (coloured.has(`${num.pageRow},${num.col}`)) shapes.push({ kind: 'rect', ...clearArea(num.cell, around(num.boxes)), fill: '#ffffff' });
+  for (const field of [...page.numbers, ...page.letters]) {
+    if (coloured.has(`${field.pageRow},${field.col}`)) shapes.push({ kind: 'rect', ...clearArea(field.cell, around(field.boxes)), fill: '#ffffff' });
+  }
+  for (const { pageRow, col, cell } of page.lines) {
+    if (coloured.has(`${pageRow},${col}`)) shapes.push({ kind: 'rect', ...inset(cell, Math.min(BOX_CLEARANCE, cell.h / 8)), fill: '#ffffff' });
   }
   if (settings.gridlines) {
     for (const cell of page.cells) shapes.push({ kind: 'frame', ...cell.rect, stroke: GRID_COLOR, width: 0.2 });
@@ -132,6 +135,12 @@ export function drawPage(template: Template, page: PageLayout, qr: boolean[][]):
       shapes.push(textShape(num.field.separator, rect, sep.h * 0.7, true, 'center', DIGIT_BOX_COLOR));
     }
   }
+  for (const letters of page.letters) {
+    for (const box of letters.boxes) shapes.push({ kind: 'frame', ...box, stroke: DIGIT_BOX_COLOR, width: BOX_STROKE });
+  }
+  for (const { line } of page.lines) {
+    shapes.push({ kind: 'rect', x: line.x, y: line.y - BOX_STROKE / 2, w: line.w, h: BOX_STROKE, fill: DIGIT_BOX_COLOR });
+  }
 
   CORNERS.forEach((_, corner) => {
     const rect = markerRect(page.format, corner);
@@ -159,6 +168,10 @@ function clearArea(cell: Rect, box: Rect): Rect {
   const right = Math.min(cell.x + cell.w, box.x + box.w + BOX_CLEARANCE);
   const bottom = Math.min(cell.y + cell.h, box.y + box.h + BOX_CLEARANCE);
   return { x, y, w: right - x, h: bottom - y };
+}
+
+function inset(rect: Rect, by: number): Rect {
+  return { x: rect.x + by, y: rect.y + by, w: rect.w - 2 * by, h: rect.h - 2 * by };
 }
 
 /** The smallest rectangle around a row of boxes. */

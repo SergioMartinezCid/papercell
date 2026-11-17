@@ -1,4 +1,15 @@
-import { cellAddress, drawingToSvg, fieldToken, parseField, type CellKind, type KindOverride, type NumberField, type PrintablePage } from '@papercell/core';
+import {
+  cellAddress,
+  drawingToSvg,
+  fieldToken,
+  lettersToken,
+  MAX_FIELD_LETTERS,
+  parseField,
+  type CellKind,
+  type KindOverride,
+  type NumberField,
+  type PrintablePage,
+} from '@papercell/core';
 import { Box, Button, Group, Paper, Popover, Stack, Text, TextInput } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { memo, useMemo, useState } from 'react';
@@ -12,8 +23,15 @@ interface Props {
   /** The kind chosen by hand for a cell, if any. */
   chosen: (row: number, col: number) => KindOverride | undefined;
   /** The kind a cell gets when nothing is chosen by hand (from its token, note or position). */
-  automatic: (row: number, col: number) => { kind: CellKind; field?: NumberField };
+  automatic: (row: number, col: number) => Automatic;
   onChoose: (row: number, col: number, kind: KindOverride | null) => void;
+}
+
+/** A kind of cell, with its number field or its number of letters. */
+export interface Automatic {
+  kind: CellKind;
+  field?: NumberField;
+  letters?: number;
 }
 
 interface Target {
@@ -29,8 +47,10 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
   const [target, setTarget] = useState<Target | null>(null);
   /** Pattern typed for a number field (e.g. `##,#`). */
   const [pattern, setPattern] = useState('');
+  /** Number of boxes typed for a letter field. */
+  const [count, setCount] = useState('');
   const { width, height } = page.drawing;
-  const choosable = page.layout.cells.filter((c) => c.kind === 'mark' || c.kind === 'number' || c.kind === 'blank');
+  const choosable = page.layout.cells.filter((c) => c.kind !== 'text');
   const pct = (v: number, total: number) => `${(v / total) * 100}%`;
 
   const choose = (kind: KindOverride | null) => {
@@ -39,13 +59,20 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
   };
   const current = target && chosen(target.row, target.col);
   const auto = target && automatic(target.row, target.col);
-  const kindName = ({ kind, field }: { kind: CellKind; field?: NumberField }) =>
-    kind === 'number' && field ? `${t('prepare.cell.number')} ${fieldToken(field)}` : t(kind === 'mark' ? 'prepare.cell.box' : 'prepare.cell.blank');
+  const kindName = ({ kind, field, letters }: Automatic) => {
+    if (kind === 'number' && field) return `${t('prepare.cell.number')} ${fieldToken(field)}`;
+    if (kind === 'letters' && letters) return `${t('prepare.cell.letters')} ${lettersToken(letters)}`;
+    return t(kind === 'mark' ? 'prepare.cell.box' : kind === 'line' ? 'prepare.cell.line' : 'prepare.cell.blank');
+  };
   const typed = parseField(pattern);
+  const typedCount = /^\d{1,2}$/.test(count.trim()) && Number(count) >= 1 && Number(count) <= MAX_FIELD_LETTERS ? Number(count) : null;
   const openMenu = (row: number, col: number, rect: Target['rect']) => {
     const own = chosen(row, col);
-    const field = typeof own === 'object' ? own.number : automatic(row, col).field;
+    const auto = automatic(row, col);
+    const field = typeof own === 'object' && 'number' in own ? own.number : auto.field;
+    const letters = typeof own === 'object' && 'letters' in own ? own.letters : auto.letters;
     setPattern(field ? fieldToken(field).slice(1, -1) : '##');
+    setCount(String(letters ?? 8));
     setTarget({ row, col, rect });
   };
   const option = (label: string, selected: boolean, onClick: () => void) => (
@@ -98,7 +125,29 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
               {option(t('prepare.cell.automatic', { kind: kindName(auto) }), current === undefined, () => choose(null))}
               {option(t('prepare.cell.box'), current === 'mark', () => choose('mark'))}
               {option(t('prepare.cell.blank'), current === 'blank', () => choose('blank'))}
+              {option(t('prepare.cell.line'), current === 'line', () => choose('line'))}
               <Group gap={4} wrap="nowrap" align="flex-start" mt={2}>
+                <TextInput
+                  size="xs"
+                  w={96}
+                  aria-label={t('prepare.cell.count')}
+                  value={count}
+                  error={!typedCount}
+                  inputMode="numeric"
+                  onChange={(e) => setCount(e.currentTarget.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && typedCount && choose({ letters: typedCount })}
+                />
+                <Button
+                  size="xs"
+                  variant={current && typeof current === 'object' && 'letters' in current ? 'light' : 'subtle'}
+                  disabled={!typedCount}
+                  onClick={() => typedCount && choose({ letters: typedCount })}
+                  style={{ flex: 1 }}
+                >
+                  {t('prepare.cell.letters')}
+                </Button>
+              </Group>
+              <Group gap={4} wrap="nowrap" align="flex-start">
                 <TextInput
                   size="xs"
                   w={96}
@@ -111,7 +160,7 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
                 />
                 <Button
                   size="xs"
-                  variant={typeof current === 'object' ? 'light' : 'subtle'}
+                  variant={current && typeof current === 'object' && 'number' in current ? 'light' : 'subtle'}
                   disabled={!typed}
                   onClick={() => typed && choose({ number: typed })}
                   style={{ flex: 1 }}

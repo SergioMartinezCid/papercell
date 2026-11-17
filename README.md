@@ -2,7 +2,7 @@
 
 Turn a spreadsheet range into a printable sheet, mark it or write numbers on it by hand, photograph it, and get the results back as cells.
 
-1. **Prepare** (computer): copy a range in Google Sheets, Excel or LibreOffice and paste it, or upload an `.xlsx`, `.csv` or `.tsv` file. Cells with text are printed as they are; empty cells become boxes (see [cell kinds](#cell-kinds) for numbers and blank cells). Print.
+1. **Prepare** (computer): copy a range in Google Sheets, Excel or LibreOffice and paste it, or upload an `.xlsx`, `.csv` or `.tsv` file. Cells with text are printed as they are; empty cells become boxes (see [cell kinds](#cell-kinds) for numbers, letters, writing lines and blank cells). Print.
 2. **Mark** the boxes on paper by filling them in, and write numbers one digit per box.
 3. **Scan** (phone or computer): take a photo, or drop, paste or choose an image. Papercell finds the page, reads every box and number and flags the ones it is unsure about for a quick check.
 4. **Paste** the result back into the spreadsheet: copy it (tab-separated, ready to paste) or download a CSV.
@@ -13,7 +13,7 @@ Everything runs in the browser. Photos and sheets never leave the device.
 
 ## How a sheet is read
 
-Every printed page carries four [ArUco](https://www.uco.es/investiga/grupos/ava/portfolio/aruco/) corner markers and a QR code. The QR code describes the page: grid geometry, which cells are boxes or number fields, page number and where the range sits in the spreadsheet. Any device can scan any printed page without having the original sheet.
+Every printed page carries four [ArUco](https://www.uco.es/investiga/grupos/ava/portfolio/aruco/) corner markers and a QR code. The QR code describes the page: grid geometry, which cells are boxes, number fields, letter fields or writing lines, page number and where the range sits in the spreadsheet. Any device can scan any printed page without having the original sheet.
 
 Scanning a photo:
 
@@ -29,13 +29,13 @@ Scanning a photo:
 Paper printed today must still scan after the app is updated. Most of the layout travels in the QR code, so it can change freely. The few things the scanner assumes beyond it are the print format, kept in `packages/core/src/spec.ts`:
 
 - The frame, shared by every version: paper sizes, corner markers and where the QR code sits.
-- Per version, which is the first byte of the page code: the code's byte layout and the size of the boxes and digit boxes. Version 1 has boxes; version 2 adds number fields.
+- Per version, which is the first byte of the page code: the code's byte layout and the size of the boxes and digit boxes. Version 1 has boxes; version 2 adds number fields; version 3 adds letter fields and writing lines.
 
 These values never change. A new kind of page gets a new version, while the scanner keeps reading every earlier one. A page from a version newer than the app asks the user to reload the app to update it. `packages/core/test/compat.test.ts` scans pages recorded from every version's printer (`test/fixtures/v<n>/`), so a change that would break existing prints fails the tests.
 
 ## Cell kinds
 
-Every cell gets a kind: `text` (printed, never read), `mark` (a box), `number` (one box per digit) or `blank` (printed empty, not read). Cells with text are printed. Other cells become boxes, except in rows without any text, which stay blank, unless the spreadsheet or the app says otherwise:
+Every cell gets a kind: `text` (printed, never read), `mark` (a box), `number` (one box per digit), `letters` (one box per capital letter), `line` (a line to write on) or `blank` (printed empty, not read). Cells with text are printed. Other cells become boxes, except in rows without any text, which stay blank, unless the spreadsheet or the app says otherwise:
 
 | Token | Kind |
 | --- | --- |
@@ -43,6 +43,8 @@ Every cell gets a kind: `text` (printed, never read), `mark` (a box), `number` (
 | `[-]` | blank |
 | `[##]`, `[###]`… | a number, one box per digit (`#`); numbers can be written aligned left or right |
 | `[#,#]`, `[##.##]`… | a number with decimals; the separator is printed between the boxes and kept in the value |
+| `[___]`, `[______]`… | capital letters (or digits), one box per letter (`_`); empty boxes between letters become a space |
+| `[...]` or `[…]` | a line to write anything on; it is not read, but shown when reviewing to type what is written |
 
 `0` can be used instead of `#` (`[00]`, `[0,0]`), but not mixed with it. A token counts when it is the whole text of a cell, or anywhere in the cell's note (the first one counts), so a note can keep the cell itself empty and survive results pasted over it. Notes are read from Google Sheets, LibreOffice and ONLYOFFICE pastes and from `.xlsx` files; Excel does not seem to copy notes, so there, write tokens in the cells. In the app, clicking a cell in the preview chooses its kind by hand, which wins over tokens.
 

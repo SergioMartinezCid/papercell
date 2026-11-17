@@ -7,6 +7,9 @@
  * - `[##]`, `[#,#]`, `[##.##]`…: a number written by hand, one digit per printed box; `#` stands for a digit
  *   and `,` or `.` for the decimal separator, printed between the boxes. `0` can be used instead of `#`
  *   (`[00]`, `[0,0]`), but not mixed with it.
+ * - `[___]`: letters written by hand, one capital letter per printed box (one `_` per box).
+ * - `[...]` (or `[…]`, as autocorrect writes it): a line to write anything on. It is not read: what is
+ *   written there is shown to be typed in.
  */
 
 export interface NumberField {
@@ -18,12 +21,19 @@ export interface NumberField {
   separator: '' | '.' | ',';
 }
 
-export type CellToken = { kind: 'mark' } | { kind: 'blank' } | { kind: 'number'; field: NumberField };
+export type CellToken =
+  | { kind: 'mark' }
+  | { kind: 'blank' }
+  | { kind: 'number'; field: NumberField }
+  | { kind: 'letters'; count: number }
+  | { kind: 'line' };
 
 /** Most digits in one number field. */
 export const MAX_FIELD_DIGITS = 12;
+/** Most boxes in one letter field. */
+export const MAX_FIELD_LETTERS = 40;
 
-const TOKEN = /\[(\s+|\s*-\s*|#+(?:[.,]#+)?|0+(?:[.,]0+)?)\]|☐/g;
+const TOKEN = /\[(\s+|\s*-\s*|#+(?:[.,]#+)?|0+(?:[.,]0+)?|_+|\s*(?:\.\.\.|…)\s*)\]|☐/g;
 const WHOLE = new RegExp(`^(?:${TOKEN.source})$`);
 
 /** The token that is the whole of `text`, if any. */
@@ -46,6 +56,11 @@ export function fieldToken(field: NumberField): string {
   return `[${'#'.repeat(field.digits)}${field.decimals ? field.separator + '#'.repeat(field.decimals) : ''}]`;
 }
 
+/** A letter field written as a token, e.g. `[_____]`. */
+export function lettersToken(count: number): string {
+  return `[${'_'.repeat(count)}]`;
+}
+
 /** Parses a number field written as a token, with or without its brackets (`##,#`). */
 export function parseField(text: string): NumberField | null {
   const t = text.trim();
@@ -62,6 +77,8 @@ function tokenOf(match: RegExpMatchArray): CellToken | null {
   const inner = match[1].trim();
   if (inner === '') return { kind: 'mark' };
   if (inner === '-') return { kind: 'blank' };
+  if (inner === '...' || inner === '…') return { kind: 'line' };
+  if (inner.startsWith('_')) return inner.length <= MAX_FIELD_LETTERS ? { kind: 'letters', count: inner.length } : null;
   const [whole, fraction = ''] = inner.split(/[.,]/);
   if (whole.length + fraction.length > MAX_FIELD_DIGITS) return null;
   const separator = fraction ? (inner[whole.length] as '.' | ',') : '';

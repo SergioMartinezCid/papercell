@@ -236,3 +236,18 @@ export function runNumberCase(c: NumberCaseOptions): NumberCaseResult {
   }
   return result;
 }
+
+/** A list with letter fields and writing lines: a label column, then one column per token (e.g. `[_____]`, `[...]`). */
+export function textTemplate(o: { rows?: number; tokens?: string[]; settings?: Partial<LayoutSettings> } = {}): Template {
+  const rows = o.rows ?? 20;
+  const tokens = o.tokens ?? ['[______]', '[...]'];
+  const header: SheetCell[] = [{ text: 'Item', style: { bold: true } }, ...tokens.map((_, i) => ({ text: `Text ${i + 1}`, style: { bold: true } }))];
+  const body = Array.from({ length: rows }, (_, r) => [{ text: `Item ${r + 1}` }, ...tokens.map((text) => ({ text }))]);
+  const width = (t: string) => (t.includes('_') ? 30 + 22 * t.length : 260);
+  return {
+    sheet: normalizeSheet({ cells: [header, ...body], colWidths: [140, ...tokens.map(width)], rowHeights: Array(rows + 1).fill(24) }),
+    overrides: {},
+    settings: { ...DEFAULT_SETTINGS, title: 'Text', ...o.settings },
+    anchor: { row: 0, col: 0 },
+  };
+}

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { buildPrintable } from '../src/drawing';
 import { base45Decode, base45Encode, decodePayload, encodePayload, PayloadError, sourceRowOf } from '../src/payload';
 import { gridCellRect } from '../src/layout';
-import { boxInCell, digitBoxes, PRINT_VERSION } from '../src/spec';
+import { boxInCell, digitBoxes, letterBoxes, PRINT_VERSION, writingLine } from '../src/spec';
 import { normalizeSheet } from '../src/sheet';
-import { numberTemplate, sampleTemplate } from './sim/scenario';
+import { numberTemplate, sampleTemplate, textTemplate } from './sim/scenario';
 
 describe('base45', () => {
   it('round-trips arbitrary bytes, including odd lengths', () => {
@@ -65,9 +65,33 @@ describe('page payload', () => {
     }
   });
 
+  it('round-trips letter fields and writing lines and reproduces where they were printed', () => {
+    const template = textTemplate({ rows: 80, tokens: ['[____]', '[...]', '[##]', '[________]'], settings: { fit: 'width' } });
+    template.overrides = { '3,1': 'line', '4,2': { letters: 3 } };
+    const pages = buildPrintable(template).pages;
+    expect(pages.length).toBeGreaterThan(1);
+    for (const page of pages) {
+      const decoded = decodePayload(page.code);
+      expect(decoded).toEqual(page.payload);
+      const cell = (f: { pageRow: number; col: number; rowSpan: number; colSpan: number }) => gridCellRect(decoded.grid, f.pageRow, f.col, f.rowSpan, f.colSpan);
+      const letters = decoded.letters!.map((l) => ({ row: sourceRowOf(decoded, l.pageRow), col: l.col, count: l.count, boxes: letterBoxes(cell(l), l.count, decoded.version) }));
+      expect(letters).toEqual(page.layout.letters.map((l) => ({ row: l.row, col: l.col, count: l.count, boxes: l.boxes })));
+      const lines = decoded.lines!.map((l) => ({ row: sourceRowOf(decoded, l.pageRow), col: l.col, line: writingLine(cell(l), decoded.version) }));
+      expect(lines).toEqual(page.layout.lines.map((l) => ({ row: l.row, col: l.col, line: l.line })));
+    }
+    const first = decodePayload(pages[0].code);
+    expect(first.lines!.find((l) => sourceRowOf(first, l.pageRow) === 3 && l.col === 1)).toBeDefined();
+    expect(first.letters!.find((l) => sourceRowOf(first, l.pageRow) === 4 && l.col === 2)).toMatchObject({ count: 3 });
+  });
+
   it('stays small with a column of number fields', () => {
     const { pages } = buildPrintable(numberTemplate({ rows: 40, tokens: ['[##]'] }));
     expect(encodePayload(pages[0].payload).length).toBeLessThan(100);
+  });
+
+  it('stays small with columns of different fields', () => {
+    const { pages } = buildPrintable(textTemplate({ rows: 40, tokens: ['[____]', '[...]', '[#,#]', '[________]', '[##]'] }));
+    expect(encodePayload(pages[0].payload).length).toBeLessThan(110);
   });
 
   it('stays small for a typical list', () => {

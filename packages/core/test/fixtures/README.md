@@ -13,3 +13,8 @@ Never regenerate these files: they stand for paper that already exists. When the
 
 - `a4-portrait-numbers.json`: A4 portrait, one page: boxes and number fields of several formats (`[##]`, `[#,#]` and `[0,0]` from notes, `[000.00]`, one chosen by hand), blank cells, striped rows, a number field over two merged cells and a hidden row.
 - `letter-landscape-page2.json`: Letter landscape, page 2 of 4, with a repeated header row, a column of `[###]` fields and no gridlines.
+
+`v3` (boxes, number fields, letter fields and writing lines) was recorded with `buildPrintable` when letter fields and writing lines were added:
+
+- `a4-portrait-text.json`: A4 portrait, one page: boxes, `[##]` number fields, letter fields of several lengths (`[______]` in cells, `[____]` from notes, one chosen by hand), writing lines (`[...]` in cells, `[…]` from notes, one chosen by hand), striped rows, a writing line over two merged cells, a cell made blank by hand and a hidden column.
+- `letter-landscape-page2.json`: Letter landscape, page 2 of several, with a repeated header row, a column of `[___]` letter fields, one of writing lines and no gridlines.

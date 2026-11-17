@@ -8,7 +8,7 @@ import type { PageDrawing } from '../src/drawing';
 import { gridCellRect, type Rect } from '../src/layout';
 import { decodePayload, sourceRowOf, type PagePayload } from '../src/payload';
 import { scanPage } from '../src/scan/scanPage';
-import { boxInCell, digitBoxes, PRINT_VERSION } from '../src/spec';
+import { boxInCell, digitBoxes, letterBoxes, PRINT_VERSION, writingLine } from '../src/spec';
 import { drawMark, INKS } from './sim/marks';
 import { photograph, randomPhotoParams } from './sim/photo';
 import { mulberry32 } from './sim/random';
@@ -21,6 +21,9 @@ interface Fixture {
   boxes: Array<{ row: number; col: number; box: Rect }>;
   /** Number fields (from version 2). */
   numbers?: Array<{ row: number; col: number; boxes: Rect[] }>;
+  /** Letter fields and writing lines (from version 3). */
+  letters?: Array<{ row: number; col: number; boxes: Rect[] }>;
+  lines?: Array<{ row: number; col: number; line: { x: number; y: number; w: number } }>;
   drawing: PageDrawing;
 }
 
@@ -70,6 +73,23 @@ describe('pages printed by earlier versions', () => {
             for (const k of ['x', 'y', 'w', 'h'] as const) expect(box[k]).toBeCloseTo(printed[i].boxes[j][k], 6);
           }),
         );
+      });
+
+      it('expects letter boxes and writing lines where they were printed', () => {
+        const { payload } = fixture;
+        const cell = (f: { pageRow: number; col: number; rowSpan: number; colSpan: number }) => gridCellRect(payload.grid, f.pageRow, f.col, f.rowSpan, f.colSpan);
+        const letters = (payload.letters ?? []).map((l) => ({ row: sourceRowOf(payload, l.pageRow), col: l.col, boxes: letterBoxes(cell(l), l.count, payload.version) }));
+        expect(letters.map((l) => [l.row, l.col])).toEqual((fixture.letters ?? []).map((l) => [l.row, l.col]));
+        letters.forEach((l, i) =>
+          l.boxes.forEach((box, j) => {
+            for (const k of ['x', 'y', 'w', 'h'] as const) expect(box[k]).toBeCloseTo(fixture.letters![i].boxes[j][k], 6);
+          }),
+        );
+        const lines = (payload.lines ?? []).map((l) => ({ row: sourceRowOf(payload, l.pageRow), col: l.col, line: writingLine(cell(l), payload.version) }));
+        expect(lines.map((l) => [l.row, l.col])).toEqual((fixture.lines ?? []).map((l) => [l.row, l.col]));
+        lines.forEach((l, i) => {
+          for (const k of ['x', 'y', 'w'] as const) expect(l.line[k]).toBeCloseTo(fixture.lines![i].line[k], 6);
+        });
       });
 
       it('scans a photo of the page', () => {

@@ -2,8 +2,8 @@
  * Turns a sheet into printable pages. All geometry is in millimetres on the paper, and every
  * grid edge is quantised to 0.1 mm so the page code (QR) reproduces it exactly when scanning.
  */
-import { cellKey, planCells, type CellKind, type CellStyle, type KindOverrides, type Sheet } from './sheet';
-import { boxInCell, digitBoxes, FRAME, paperFormat } from './spec';
+import { cellKey, FIELD_KINDS, planCells, type CellKind, type CellStyle, type KindOverrides, type Sheet } from './sheet';
+import { boxInCell, digitBoxes, FRAME, letterBoxes, paperFormat, writingLine } from './spec';
 import type { NumberField } from './tokens';
 
 export type PaperSize = 'a4' | 'letter';
@@ -113,6 +113,29 @@ export interface PageNumber {
   separator: Rect | null;
 }
 
+/** A letter field on a page: one box per letter. */
+export interface PageLetters {
+  row: number;
+  col: number;
+  pageRow: number;
+  rowSpan: number;
+  colSpan: number;
+  cell: Rect;
+  count: number;
+  boxes: Rect[];
+}
+
+/** A writing line on a page. */
+export interface PageLine {
+  row: number;
+  col: number;
+  pageRow: number;
+  rowSpan: number;
+  colSpan: number;
+  cell: Rect;
+  line: { x: number; y: number; w: number };
+}
+
 export interface PageBox {
   row: number;
   col: number;
@@ -137,6 +160,8 @@ export interface PageLayout {
   cells: PageCell[];
   boxes: PageBox[];
   numbers: PageNumber[];
+  letters: PageLetters[];
+  lines: PageLine[];
 }
 
 export interface SheetLayout {
@@ -150,8 +175,10 @@ export interface SheetLayout {
   /** Smallest box side in mm (0 when there are no boxes). */
   minBoxSide: number;
   numberCount: number;
-  /** Height of the smallest digit boxes in mm (0 when there are no number fields). */
-  minDigitHeight: number;
+  letterCount: number;
+  lineCount: number;
+  /** Height of the smallest digit or letter boxes in mm (0 when there are neither). */
+  minCharHeight: number;
 }
 
 /**
@@ -161,7 +188,7 @@ export interface SheetLayout {
 export function layoutSheet(template: Template, qrSide: number): SheetLayout {
   const { sheet, settings } = template;
   const format = paperFormat(settings.paper, settings.orientation);
-  const { kinds, fields } = planCells(sheet, template.overrides);
+  const { kinds, fields, letters: letterCounts } = planCells(sheet, template.overrides);
   const content = contentRect(format, qrSide);
   const rowCount = sheet.rowHeights.length;
   // Hidden rows and columns keep their place in the range, with no size on paper.
@@ -173,7 +200,7 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
   const totalHeightPx = rowHeights.reduce((a, b) => a + b, 0);
 
   let headerRows = 0;
-  while (headerRows < rowCount && !kinds[headerRows].some((k) => k === 'mark' || k === 'number')) headerRows++;
+  while (headerRows < rowCount && !kinds[headerRows].some((k) => FIELD_KINDS.has(k))) headerRows++;
   if (headerRows === rowCount) headerRows = 0;
 
   let scale = Math.min(MAX_SCALE, content.w / Math.max(totalWidthPx, 1));
@@ -219,6 +246,8 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
     const cells: PageCell[] = [];
     const boxes: PageBox[] = [];
     const numbers: PageNumber[] = [];
+    const letters: PageLetters[] = [];
+    const lines: PageLine[] = [];
     rows.forEach((row, pageRow) => {
       sheet.cells[row].forEach((cell, col) => {
         const kind = kinds[row][col];
@@ -234,13 +263,20 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
           const field = fields.get(cellKey(row, col))!;
           numbers.push({ row, col, pageRow, rowSpan, colSpan, cell: rect, field, ...digitBoxes(rect, field) });
         }
+        if (kind === 'letters') {
+          const count = letterCounts.get(cellKey(row, col))!;
+          letters.push({ row, col, pageRow, rowSpan, colSpan, cell: rect, count, boxes: letterBoxes(rect, count) });
+        }
+        if (kind === 'line') lines.push({ row, col, pageRow, rowSpan, colSpan, cell: rect, line: writingLine(rect) });
       });
     });
-    return { index, count: pageRows.length, format, scale, grid, rows, headerRows: pageHeaderRows, cells, boxes, numbers };
+    return { index, count: pageRows.length, format, scale, grid, rows, headerRows: pageHeaderRows, cells, boxes, numbers, letters, lines };
   });
 
   const allBoxes = pages.flatMap((p) => p.boxes);
   const allNumbers = pages.flatMap((p) => p.numbers);
+  const allLetters = pages.flatMap((p) => p.letters);
+  const charHeights = [...allNumbers, ...allLetters].map((f) => f.boxes[0].h);
   return {
     format,
     scale,
@@ -250,7 +286,9 @@ export function layoutSheet(template: Template, qrSide: number): SheetLayout {
     boxCount: allBoxes.length,
     minBoxSide: allBoxes.length ? Math.min(...allBoxes.map((b) => b.box.w)) : 0,
     numberCount: allNumbers.length,
-    minDigitHeight: allNumbers.length ? Math.min(...allNumbers.map((n) => n.boxes[0].h)) : 0,
+    letterCount: allLetters.length,
+    lineCount: pages.reduce((n, p) => n + p.lines.length, 0),
+    minCharHeight: charHeights.length ? Math.min(...charHeights) : 0,
   };
 }
 
