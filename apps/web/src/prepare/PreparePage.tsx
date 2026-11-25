@@ -1,4 +1,4 @@
-import { Alert, Badge, Box, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Box, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconPrinter, IconTable } from '@tabler/icons-react';
 import {
@@ -15,6 +15,7 @@ import {
   type Template,
 } from '@papercell/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useHelp } from '../help/HelpContext';
 import { useI18n } from '../i18n';
 import { sheetFromClipboard, sheetsFromFile } from '../lib/importSheet';
 import { deleteTemplate, listTemplates, saveTemplate, type StoredTemplate } from '../lib/templates';
@@ -36,6 +37,7 @@ interface Props {
 
 export function PreparePage({ active, mobile, touch }: Props) {
   const { t } = useI18n();
+  const { openFaq } = useHelp();
   const [template, setTemplate] = useState<Template | null>(null);
   const [anchorText, setAnchorText] = useState('A1');
   const [recent, setRecent] = useState<StoredTemplate[]>([]);
@@ -262,7 +264,10 @@ export function PreparePage({ active, mobile, touch }: Props) {
             {t('prepare.preview.hint')} {t('prepare.printHint')}
           </Text>
           <Text size="sm" c="dimmed">
-            {t('prepare.tokens.hint')}
+            {t('prepare.tokens.hint')}{' '}
+            <Anchor component="button" type="button" size="sm" onClick={() => openFaq('tokens')} style={{ verticalAlign: 'baseline' }}>
+              {t('prepare.tokens.more')}
+            </Anchor>
           </Text>
           {printable.value.pages.map((page) => (
             <PagePreview

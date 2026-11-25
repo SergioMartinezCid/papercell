@@ -4,6 +4,27 @@
   height: auto;
 }
 
+.tab-icon {
+  display: flex;
+}
+
+/* Narrow phones: room for the tabs and the header buttons. */
+@media (max-width: 25em) {
+  .tab-icon {
+    display: none;
+  }
+
+  .header-icon {
+    --ai-size: 30px;
+  }
+}
+
+@media (max-width: 22em) {
+  .header-logo {
+    display: none !important;
+  }
+}
+
 .prepare-grid {
   display: grid;
   grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);

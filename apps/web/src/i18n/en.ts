@@ -3,6 +3,8 @@ export const en = {
   'nav.prepare': 'Prepare',
   'header.language': 'Language',
   'header.colorScheme': 'Light / dark',
+  'help.faq': 'Frequently asked questions',
+  'faq.title': 'Frequently asked questions',
 
   'prepare.empty.title': 'Start from a spreadsheet',
   'prepare.empty.body':
@@ -59,6 +61,7 @@ export const en = {
   'prepare.preview.hint': 'Click a cell without text to choose what it is.',
   'prepare.tokens.hint':
     'In the spreadsheet, write in a cell (alone) or anywhere in its note: [ ] for a box, [-] for blank, [##] for a number of up to 2 digits, [#,#] or [#.#] with decimals (0 works like #), [_____] for capital letters, one per _, or [...] for a line to write on (you type what is written when reviewing).',
+  'prepare.tokens.more': 'More about tokens',
   'prepare.cell.title': 'Cell {cell}',
   'prepare.cell.automatic': 'Automatic: {kind}',
   'prepare.cell.box': 'Box',

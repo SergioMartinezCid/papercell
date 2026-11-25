@@ -5,6 +5,8 @@ export const es: Messages = {
   'nav.prepare': 'Preparar',
   'header.language': 'Idioma',
   'header.colorScheme': 'Claro / oscuro',
+  'help.faq': 'Preguntas frecuentes',
+  'faq.title': 'Preguntas frecuentes',
 
   'prepare.empty.title': 'Empieza desde una hoja de cálculo',
   'prepare.empty.body':
@@ -61,6 +63,7 @@ export const es: Messages = {
   'prepare.preview.hint': 'Haz clic en una celda sin texto para elegir qué es.',
   'prepare.tokens.hint':
     'En la hoja de cálculo, escribe en una celda (solo) o en cualquier parte de su nota: [ ] para una casilla, [-] para dejarla en blanco, [##] para un número de hasta 2 cifras, [#,#] o [#.#] con decimales (0 sirve igual que #), [_____] para letras mayúsculas, una por _, o [...] para una línea en la que escribir (lo escrito se teclea al revisar).',
+  'prepare.tokens.more': 'Más sobre las etiquetas',
   'prepare.cell.title': 'Celda {cell}',
   'prepare.cell.automatic': 'Automático: {kind}',
   'prepare.cell.box': 'Casilla',
