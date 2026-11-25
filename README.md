@@ -19,6 +19,8 @@ Each page carries a QR code that describes it, so pages can be scanned in any or
 
 The app is in English and Spanish. It can be installed on a phone or computer and then works offline.
 
+New to it? The **?** button opens a guided tour of the app and answers to common questions, including every token. To see reading and reviewing without printing anything, use **Try a sample photo** on the Scan page: it reads a photo of a filled-in sample page.
+
 ## Cell kinds
 
 Every cell gets a kind:
@@ -139,6 +141,7 @@ These values never change. A new kind of page gets a new version, and the scanne
 | `packages/core/test` | Unit tests and a synthetic "printer + phone camera" simulator (perspective, curl, shadows, blur, noise, hand marks and handwriting). |
 | `packages/core/bench` | Benchmarks built on the simulator. |
 | `apps/web` | The React + Mantine PWA. |
+| `apps/web/scripts` | Makes the sample photos (`pnpm sample:photos`). |
 
 ### Commands
 
@@ -154,7 +157,10 @@ pnpm preview        # serve the production build
 pnpm bench:backgrounds [photos]   # do cell background colours affect reading?
 pnpm bench:numbers [photos]       # how well are handwritten numbers read?
 pnpm bench:text [photos]          # how well are letters and writing lines read?
+pnpm sample:photos [--seed n]     # remake the sample photos behind "Try a sample photo"
 ```
+
+The sample photos (`apps/web/public/sample/`) and their sheets (`apps/web/src/help/samples.json`) are made by `apps/web/scripts/sample-photos.ts`. It renders the printed page with real fonts ([resvg](https://github.com/linebender/resvg)), fills it in and photographs it with the test simulator, then scans the photo. It fails when a value comes out wrong without being flagged; another `--seed` gives other handwriting.
 
 ### Phones and HTTPS
 
