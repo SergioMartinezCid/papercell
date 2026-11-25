@@ -23,6 +23,8 @@ export interface PhotoParams {
   hardShadow: number;
   /** Colour of the light. */
   tint: [number, number, number];
+  /** Colour of the table around the page; random when absent. */
+  table?: [number, number, number];
   blur: number;
   noise: number;
 }
@@ -90,7 +92,8 @@ export function photograph(page: RgbImage, pagePxPerMm: number, params: PhotoPar
   const edgeAngle = uniform(rng, 0, 2 * Math.PI);
   const edgeOffset = uniform(rng, -0.3, 0.3) * width;
   const gradAngle = uniform(rng, 0, 2 * Math.PI);
-  const table = [uniform(rng, 0.25, 0.45), uniform(rng, 0.2, 0.35), uniform(rng, 0.12, 0.25)];
+  const randomTable = [uniform(rng, 0.25, 0.45), uniform(rng, 0.2, 0.35), uniform(rng, 0.12, 0.25)];
+  const table = params.table ?? randomTable;
 
   const rgb = new Float32Array(width * height * 3);
   for (let v = 0; v < height; v++) {

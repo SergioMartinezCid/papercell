@@ -8,16 +8,21 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -p tsconfig.json",
-    "test": "echo \"no web tests\""
+    "typecheck": "tsc -p tsconfig.json && tsc -p scripts/tsconfig.json",
+    "test": "echo \"no web tests\"",
+    "sample:photos": "tsx scripts/sample-photos.ts"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "jpeg-js": "0.4.4",
     "postcss": "^8.5.32",
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",
+    "tsx": "4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vite-plugin-pwa": "^2.0.0",

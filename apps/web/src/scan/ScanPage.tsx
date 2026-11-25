@@ -1,8 +1,9 @@
 import { ActionIcon, Alert, Badge, Box, Button, Card, Group, Image, Loader, Paper, Popover, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconCamera, IconPhoto, IconPhotoScan, IconRefresh, IconTrash } from '@tabler/icons-react';
+import { IconCamera, IconPhoto, IconPhotoScan, IconRefresh, IconSparkles, IconTrash } from '@tabler/icons-react';
 import { DEFAULT_OUTPUT, templateIdHex, type OutputOptions } from '@papercell/core';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type RefObject } from 'react';
+import { samplePhoto, findSampleTemplate } from '../help/samples';
 import { useI18n } from '../i18n';
 import { readJsonPreference, writePreference } from '../lib/preferences';
 import { deleteScan, listScans, saveScan } from '../lib/scans';
@@ -25,7 +26,7 @@ function releaseUrls(item: ScanItem): void {
 }
 
 export function ScanPage({ active, mobile }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [items, setItems] = useState<ScanItem[]>([]);
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -125,7 +126,11 @@ export function ScanPage({ active, mobile }: Props) {
   useEffect(() => {
     for (const g of groups) {
       if (templates.has(g.id)) continue;
-      void findTemplate(g.id).then((found) => setTemplates((m) => new Map(m).set(g.id, found ?? null)));
+      void findTemplate(g.id).then((found) => {
+        const sample = found ? undefined : findSampleTemplate(g.id);
+        const template = found ?? (sample && { id: g.id, savedAt: 0, template: sample });
+        setTemplates((m) => new Map(m).set(g.id, template ?? null));
+      });
     }
   }, [groups, templates]);
 
@@ -169,6 +174,14 @@ export function ScanPage({ active, mobile }: Props) {
     if (replaced && files.length > 0) remove(replaced);
     addFiles(files);
   };
+  const trySample = async () => {
+    try {
+      addFiles([await samplePhoto(lang, t('scan.sampleName'))]);
+    } catch {
+      notifications.show({ color: 'red', message: t('scan.sampleFailed') });
+    }
+  };
+
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragging(false);
@@ -222,9 +235,17 @@ export function ScanPage({ active, mobile }: Props) {
       )}
 
       {items.length === 0 && (
-        <Text size="sm" c="dimmed" ta="center">
-          {t('scan.empty')}
-        </Text>
+        <Stack align="center" gap="xs" ta="center">
+          <Text size="sm" c="dimmed">
+            {t('scan.empty')}
+          </Text>
+          <Button variant="light" leftSection={<IconSparkles size={18} />} onClick={() => void trySample()} mt="sm">
+            {t('scan.sample')}
+          </Button>
+          <Text size="xs" c="dimmed" maw={420}>
+            {t('scan.sampleHint')}
+          </Text>
+        </Stack>
       )}
 
       {pending.map((item) =>

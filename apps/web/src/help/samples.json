@@ -1,0 +1,578 @@
+{
+ "en": {
+  "templateId": 3776044793,
+  "photo": "sample/stock-check-en.jpg",
+  "template": {
+   "sheet": {
+    "cells": [
+     [
+      {
+       "text": "Item",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      },
+      {
+       "text": "Checked",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      },
+      {
+       "text": "Count",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      },
+      {
+       "text": "Initials",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      },
+      {
+       "text": "Notes",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      }
+     ],
+     [
+      {
+       "text": "Printer paper"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Pens"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Pencils"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Markers"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Erasers"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Staplers"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Scissors"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Glue sticks"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Folders"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Sticky notes"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Tape"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Batteries"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ]
+    ],
+    "colWidths": [
+     150,
+     76,
+     76,
+     100,
+     240
+    ],
+    "rowHeights": [
+     30,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38
+    ],
+    "merges": []
+   },
+   "overrides": {},
+   "settings": {
+    "paper": "a4",
+    "orientation": "portrait",
+    "fit": "page",
+    "repeatHeader": true,
+    "backgrounds": "all",
+    "gridlines": true,
+    "title": "Stock check (sample)"
+   },
+   "anchor": {
+    "row": 0,
+    "col": 0
+   }
+  }
+ },
+ "es": {
+  "templateId": 2553109572,
+  "photo": "sample/stock-check-es.jpg",
+  "template": {
+   "sheet": {
+    "cells": [
+     [
+      {
+       "text": "Artículo",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      },
+      {
+       "text": "Revisado",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      },
+      {
+       "text": "Cantidad",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      },
+      {
+       "text": "Iniciales",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      },
+      {
+       "text": "Notas",
+       "style": {
+        "bold": true,
+        "background": "#e7f5ff"
+       }
+      }
+     ],
+     [
+      {
+       "text": "Folios"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Bolígrafos"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Lápices"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Rotuladores"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Gomas"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Grapadoras"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Tijeras"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Pegamento"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Carpetas"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Notas adhesivas"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Celo"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ],
+     [
+      {
+       "text": "Pilas"
+      },
+      {
+       "text": ""
+      },
+      {
+       "text": "[##]"
+      },
+      {
+       "text": "[___]"
+      },
+      {
+       "text": "[...]"
+      }
+     ]
+    ],
+    "colWidths": [
+     150,
+     76,
+     76,
+     100,
+     240
+    ],
+    "rowHeights": [
+     30,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38,
+     38
+    ],
+    "merges": []
+   },
+   "overrides": {},
+   "settings": {
+    "paper": "a4",
+    "orientation": "portrait",
+    "fit": "page",
+    "repeatHeader": true,
+    "backgrounds": "all",
+    "gridlines": true,
+    "title": "Revisión de material (ejemplo)"
+   },
+   "anchor": {
+    "row": 0,
+    "col": 0
+   }
+  }
+ }
+}

@@ -12,6 +12,7 @@
     "typecheck": "pnpm -r typecheck",
     "bench:backgrounds": "pnpm --filter @papercell/core bench:backgrounds",
     "bench:numbers": "pnpm --filter @papercell/core bench:numbers",
-    "bench:text": "pnpm --filter @papercell/core bench:text"
+    "bench:text": "pnpm --filter @papercell/core bench:text",
+    "sample:photos": "pnpm --filter @papercell/web sample:photos"
   }
 }
