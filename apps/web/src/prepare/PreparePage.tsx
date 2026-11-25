@@ -1,6 +1,6 @@
 import { Alert, Anchor, Badge, Box, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconPrinter, IconTable } from '@tabler/icons-react';
+import { IconAlertTriangle, IconPrinter, IconRoute, IconTable } from '@tabler/icons-react';
 import {
   buildPrintable,
   cellAddress,
@@ -16,6 +16,7 @@ import {
 } from '@papercell/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHelp } from '../help/HelpContext';
+import { sampleTemplate } from '../help/samples';
 import { useI18n } from '../i18n';
 import { sheetFromClipboard, sheetsFromFile } from '../lib/importSheet';
 import { deleteTemplate, listTemplates, saveTemplate, type StoredTemplate } from '../lib/templates';
@@ -33,11 +34,13 @@ interface Props {
   active: boolean;
   mobile: boolean;
   touch: boolean;
+  /** Show the sample sheet when there is none (during the guided tour). */
+  demo: boolean;
 }
 
-export function PreparePage({ active, mobile, touch }: Props) {
-  const { t } = useI18n();
-  const { openFaq } = useHelp();
+export function PreparePage({ active, mobile, touch, demo }: Props) {
+  const { t, lang } = useI18n();
+  const { openFaq, startTour } = useHelp();
   const [template, setTemplate] = useState<Template | null>(null);
   const [anchorText, setAnchorText] = useState('A1');
   const [recent, setRecent] = useState<StoredTemplate[]>([]);
@@ -54,6 +57,8 @@ export function PreparePage({ active, mobile, touch }: Props) {
   }, []);
 
   const anchor = useMemo(() => parseCellAddress(anchorText), [anchorText]);
+  /** The sheet on screen: the one being prepared, or the sample one while the tour shows it. */
+  const shown = template ?? (demo ? sampleTemplate(lang) : null);
 
   const load = useCallback(
     (sheet: Sheet) => {
@@ -121,23 +126,23 @@ export function PreparePage({ active, mobile, touch }: Props) {
     setTemplate((current) => (current ? { ...current, settings: { ...current.settings, ...patch } } : current));
 
   const printable = useMemo(() => {
-    if (!template) return null;
+    if (!shown) return null;
     try {
-      return { ok: true as const, value: buildPrintable(template) };
+      return { ok: true as const, value: buildPrintable(shown) };
     } catch {
       return { ok: false as const };
     }
-  }, [template]);
+  }, [shown]);
 
-  const chosen = useCallback((row: number, col: number) => template?.overrides[cellKey(row, col)], [template]);
+  const chosen = useCallback((row: number, col: number) => shown?.overrides[cellKey(row, col)], [shown]);
   const automatic = useCallback(
     (row: number, col: number) => {
-      if (!template) return { kind: 'blank' as const };
-      const { [cellKey(row, col)]: _, ...others } = template.overrides;
-      const plan = planCells(template.sheet, others);
+      if (!shown) return { kind: 'blank' as const };
+      const { [cellKey(row, col)]: _, ...others } = shown.overrides;
+      const plan = planCells(shown.sheet, others);
       return { kind: plan.kinds[row][col], field: plan.fields.get(cellKey(row, col)), letters: plan.letters.get(cellKey(row, col)) };
     },
-    [template],
+    [shown],
   );
   const choose = useCallback((row: number, col: number, kind: KindOverride | null) => {
     setTemplate((current) => {
@@ -183,7 +188,7 @@ export function PreparePage({ active, mobile, touch }: Props) {
       }}
     />
   );
-  const settingsCard = template && <SettingsCard settings={template.settings} onChange={updateSettings} />;
+  const settingsCard = shown && <SettingsCard settings={shown.settings} onChange={updateSettings} />;
   const recentCard = (
     <RecentCard
       items={recent}
@@ -195,7 +200,7 @@ export function PreparePage({ active, mobile, touch }: Props) {
 
   const preview = (
     <Stack gap="md">
-      {!template && (
+      {!shown && (
         <Paper withBorder radius="md" p="xl">
           <Stack align="center" gap="xs" ta="center">
             <IconTable size={40} stroke={1.4} />
@@ -205,10 +210,13 @@ export function PreparePage({ active, mobile, touch }: Props) {
             <Text c="dimmed" maw={460}>
               {t('prepare.empty.body')}
             </Text>
+            <Button variant="light" leftSection={<IconRoute size={18} />} onClick={startTour} mt="sm">
+              {t('prepare.empty.tour')}
+            </Button>
           </Stack>
         </Paper>
       )}
-      {template && printable && !printable.ok && (
+      {shown && printable && !printable.ok && (
         <Alert color="red" icon={<IconAlertTriangle />}>
           {t('prepare.warn.tooComplex')}
         </Alert>
@@ -240,7 +248,7 @@ export function PreparePage({ active, mobile, touch }: Props) {
               </Badge>
             </Group>
             {!mobile && (
-              <Button leftSection={<IconPrinter size={18} />} onClick={() => void print()} disabled={fieldCount === 0}>
+              <Button data-tour="print" leftSection={<IconPrinter size={18} />} onClick={() => void print()} disabled={fieldCount === 0}>
                 {t('prepare.print')}
               </Button>
             )}
@@ -273,8 +281,9 @@ export function PreparePage({ active, mobile, touch }: Props) {
             <PagePreview
               key={page.layout.index}
               page={page}
+              tour={page.layout.index === 0}
               kinds={layout.kinds}
-              anchor={template!.anchor}
+              anchor={shown!.anchor}
               chosen={chosen}
               automatic={automatic}
               onChoose={choose}
@@ -298,7 +307,7 @@ export function PreparePage({ active, mobile, touch }: Props) {
         {recentCard}
         {fieldCount > 0 && (
           <Box className="sticky-actions">
-            <Button fullWidth size="md" leftSection={<IconPrinter size={18} />} onClick={() => void print()}>
+            <Button data-tour="print" fullWidth size="md" leftSection={<IconPrinter size={18} />} onClick={() => void print()}>
               {t('prepare.print')}
             </Button>
           </Box>

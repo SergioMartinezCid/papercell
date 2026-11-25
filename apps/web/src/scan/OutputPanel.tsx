@@ -150,7 +150,7 @@ export function OutputPanel({ pages, template, fileName, options, onOptions, chi
           {t('output.selectHint')}
         </Text>
       </Stack>
-      <Group gap="sm" grow className="results-actions">
+      <Group data-tour="results" gap="sm" grow className="results-actions">
         <Button leftSection={<IconCopy size={16} />} onClick={() => void copy()}>
           {t('output.copy')}
         </Button>

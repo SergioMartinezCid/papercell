@@ -1,9 +1,11 @@
 import { ActionIcon, AppShell, Box, Group, Menu, SegmentedControl, Text, Tooltip, useMantineColorScheme } from '@mantine/core';
-import { IconHelp, IconLanguage, IconMoon, IconPhotoScan, IconPrinter, IconSun } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { IconHelp, IconLanguage, IconMessageQuestion, IconMoon, IconPhotoScan, IconPrinter, IconRoute, IconSun } from '@tabler/icons-react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Faq } from './help/Faq';
 import { HelpContext } from './help/HelpContext';
+import { Tour, type TourStep } from './help/Tour';
 import { LANGUAGES, useI18n } from './i18n';
+import type { MessageKey } from './i18n/en';
 import { PreparePage } from './prepare/PreparePage';
 import { ScanPage } from './scan/ScanPage';
 
@@ -20,7 +22,48 @@ export function App() {
   const [tab, setTab] = useState<Tab>(mobile ? 'scan' : 'prepare');
   /** The questions and answers, when open: the question to show, or '' for none in particular. */
   const [faq, setFaq] = useState<string | null>(null);
-  const help = useMemo(() => ({ openFaq: (question?: string) => setFaq(question ?? '') }), []);
+  const [touring, setTouring] = useState(false);
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  /** The tab the tour started on, to go back to when it ends. */
+  const tourFrom = useRef<Tab>(tab);
+  const help = useMemo(
+    () => ({
+      openFaq: (question?: string) => setFaq(question ?? ''),
+      startTour: () => {
+        tourFrom.current = tabRef.current;
+        setTouring(true);
+      },
+    }),
+    [],
+  );
+  const endTour = useCallback(() => {
+    setTouring(false);
+    setTab(tourFrom.current);
+  }, []);
+  const tourSteps = useMemo<Array<TourStep<Tab>>>(() => {
+    const step = (id: string, tab: Tab, target?: string, fixed = false): TourStep<Tab> => ({
+      id,
+      tab,
+      target,
+      fixed,
+      title: t(`tour.${id}.title` as MessageKey),
+      body: t(`tour.${id}.body` as MessageKey),
+    });
+    return [
+      step('welcome', 'prepare', 'tabs', true),
+      step('import', 'prepare', 'import'),
+      step('preview', 'prepare', 'preview'),
+      step('cell', 'prepare', 'cell'),
+      step('settings', 'prepare', 'settings'),
+      step('print', 'prepare', 'print'),
+      step('scan', 'scan', 'scan-add'),
+      step('sample', 'scan', 'sample'),
+      step('review', 'scan', 'scan-page'),
+      step('results', 'scan', 'results'),
+      step('help', 'scan', 'help', true),
+    ];
+  }, [t]);
 
   const tabs = [
     { value: 'prepare', label: <TabLabel icon={<IconPrinter size={16} />} text={t('nav.prepare')} /> },
@@ -39,13 +82,25 @@ export function App() {
                 Papercell
               </Text>
             </Group>
-            <SegmentedControl value={tab} onChange={(v) => setTab(v as Tab)} data={tabs} />
+            <SegmentedControl data-tour="tabs" value={tab} onChange={(v) => setTab(v as Tab)} data={tabs} />
             <Group gap={4} wrap="nowrap">
-              <Tooltip label={t('help.faq')}>
-                <ActionIcon className="header-icon" variant="subtle" color="gray" size="lg" aria-label={t('help.faq')} onClick={() => help.openFaq()}>
-                  <IconHelp size={20} />
-                </ActionIcon>
-              </Tooltip>
+              <Menu position="bottom-end">
+                <Menu.Target>
+                  <Tooltip label={t('help.title')}>
+                    <ActionIcon data-tour="help" className="header-icon" variant="subtle" color="gray" size="lg" aria-label={t('help.title')}>
+                      <IconHelp size={20} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item leftSection={<IconRoute size={16} />} onClick={help.startTour}>
+                    {t('help.tour')}
+                  </Menu.Item>
+                  <Menu.Item leftSection={<IconMessageQuestion size={16} />} onClick={() => help.openFaq()}>
+                    {t('help.faq')}
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
               <Menu position="bottom-end">
                 <Menu.Target>
                   <Tooltip label={t('header.language')}>
@@ -72,13 +127,14 @@ export function App() {
         </AppShell.Header>
         <AppShell.Main>
           <Box display={tab === 'prepare' ? undefined : 'none'}>
-            <PreparePage active={tab === 'prepare'} mobile={mobile} touch={touch} />
+            <PreparePage active={tab === 'prepare'} mobile={mobile} touch={touch} demo={touring} />
           </Box>
           <Box display={tab === 'scan' ? undefined : 'none'}>
             <ScanPage active={tab === 'scan'} mobile={mobile} />
           </Box>
         </AppShell.Main>
         <Faq opened={faq !== null} question={faq || null} mobile={mobile} onClose={() => setFaq(null)} />
+        {touring && <Tour steps={tourSteps} onTab={setTab} onClose={endTour} />}
       </AppShell>
     </HelpContext.Provider>
   );

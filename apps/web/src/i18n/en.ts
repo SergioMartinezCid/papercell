@@ -3,12 +3,15 @@ export const en = {
   'nav.prepare': 'Prepare',
   'header.language': 'Language',
   'header.colorScheme': 'Light / dark',
+  'help.title': 'Help',
+  'help.tour': 'Guided tour',
   'help.faq': 'Frequently asked questions',
   'faq.title': 'Frequently asked questions',
 
   'prepare.empty.title': 'Start from a spreadsheet',
   'prepare.empty.body':
     'Select a range in Google Sheets, Excel or LibreOffice, copy it and paste it here. Cells with text are printed; empty cells become boxes to mark. Write [-] in a cell, or in its note, to leave it blank.',
+  'prepare.empty.tour': 'Take the guided tour',
   'prepare.mobileNote': 'You can prepare sheets on a phone, but printing is easier from a computer.',
   'prepare.import.title': 'Sheet',
   'prepare.import.pasteTarget': 'Click here and paste (Ctrl+V)',
@@ -147,6 +150,40 @@ export const en = {
   'output.unknown':
     '{count} cells in the block are not boxes and this device does not have the original sheet, so they will be pasted empty. Prefer "Boxes only" with a block made only of boxes, or scan on the device you printed from.',
   'output.preview': 'Preview',
+
+  'tour.progress': '{n} of {total}',
+  'tour.next': 'Next',
+  'tour.back': 'Back',
+  'tour.done': 'Done',
+  'tour.close': 'Close the tour',
+  'tour.welcome.title': 'Welcome to Papercell',
+  'tour.welcome.body':
+    'Papercell turns a spreadsheet range into a paper form and reads it back from a photo, in two steps: Prepare and Scan.',
+  'tour.import.title': 'Bring in a range',
+  'tour.import.body':
+    'Copy a range in Google Sheets, Excel, LibreOffice or ONLYOFFICE and paste it here, or upload a file. Set which cell the range starts at, so that Papercell can tell you later where to paste the results.',
+  'tour.preview.title': 'Check the page',
+  'tour.preview.body':
+    'This is how each page prints. Cells with text are printed as they are, and empty cells in rows with text become boxes to mark.',
+  'tour.cell.title': 'Choose what each cell is',
+  'tour.cell.body':
+    'Click or tap a cell without text to make it a box, a number, letters, a writing line or blank. You can also set it in the spreadsheet with a token such as [##], written in the cell or in its note. A note keeps the cell empty for the results. All the tokens are in Help, under Frequently asked questions.',
+  'tour.settings.title': 'Set up the page',
+  'tour.settings.body': 'Choose the paper, orientation and size, cell colours and gridlines, and a title printed on every page.',
+  'tour.print.title': 'Print',
+  'tour.print.body': 'Print at 100% scale. The sheet is kept on this device, under Recent sheets.',
+  'tour.scan.title': 'Fill it in and take photos',
+  'tour.scan.body':
+    'Fill in the pages by hand, then take a photo of each one, or drop, paste or choose images. Lay the page flat and make sure all four corner squares are in the photo.',
+  'tour.sample.title': 'No page at hand?',
+  'tour.sample.body': 'Try a sample photo of a filled-in page to see the next steps: reviewing and pasting the results.',
+  'tour.review.title': 'Review',
+  'tour.review.body':
+    'Each page read shows here. Papercell flags what it is unsure of: open Review to check it. Tap a box to switch it, or a value to correct it.',
+  'tour.results.title': 'Paste the results',
+  'tour.results.body': 'Copy the results and paste them into the spreadsheet at the cell shown, or download them as a CSV file.',
+  'tour.help.title': 'Help is here',
+  'tour.help.body': 'Take this tour again, or read the frequently asked questions, from this button.',
 } as const;
 
 export type MessageKey = keyof typeof en;

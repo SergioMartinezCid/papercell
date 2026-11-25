@@ -25,6 +25,32 @@
   }
 }
 
+/* Guided tour: the app dimmed around the highlighted element, and the card that explains it. */
+.tour-blocker {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+}
+
+.tour-hole {
+  position: fixed;
+  z-index: 401;
+  border-radius: 10px;
+  pointer-events: none;
+  box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.55);
+  outline: 2px solid var(--mantine-primary-color-filled);
+}
+
+.tour-hole.is-empty {
+  outline: none;
+}
+
+.tour-card {
+  position: fixed;
+  z-index: 402;
+  width: min(340px, calc(100vw - 16px));
+}
+
 .prepare-grid {
   display: grid;
   grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);

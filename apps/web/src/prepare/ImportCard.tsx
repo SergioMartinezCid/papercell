@@ -19,7 +19,7 @@ export function ImportCard(p: Props) {
   const { t } = useI18n();
   const label = p.touch ? t('prepare.import.pasteTargetTouch') : t('prepare.import.pasteTarget');
   return (
-    <Card withBorder radius="md" padding="md">
+    <Card data-tour="import" withBorder radius="md" padding="md">
       <Stack gap="sm">
         <Title order={2} size="h4">
           {t('prepare.import.title')}

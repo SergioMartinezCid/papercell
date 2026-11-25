@@ -5,12 +5,15 @@ export const es: Messages = {
   'nav.prepare': 'Preparar',
   'header.language': 'Idioma',
   'header.colorScheme': 'Claro / oscuro',
+  'help.title': 'Ayuda',
+  'help.tour': 'Visita guiada',
   'help.faq': 'Preguntas frecuentes',
   'faq.title': 'Preguntas frecuentes',
 
   'prepare.empty.title': 'Empieza desde una hoja de cálculo',
   'prepare.empty.body':
     'Selecciona un rango en Google Sheets, Excel o LibreOffice, cópialo y pégalo aquí. Las celdas con texto se imprimen; las vacías se convierten en casillas para marcar. Escribe [-] en una celda, o en su nota, para dejarla en blanco.',
+  'prepare.empty.tour': 'Hacer la visita guiada',
   'prepare.mobileNote': 'Puedes preparar hojas en el móvil, pero imprimir es más fácil desde un ordenador.',
   'prepare.import.title': 'Hoja',
   'prepare.import.pasteTarget': 'Haz clic aquí y pega (Ctrl+V)',
@@ -149,4 +152,39 @@ export const es: Messages = {
   'output.unknown':
     '{count} celdas del bloque no son casillas y este dispositivo no tiene la hoja original, así que se pegarán vacías. Mejor usa "Solo casillas" con un bloque formado solo por casillas, o escanea en el dispositivo desde el que imprimiste.',
   'output.preview': 'Vista previa',
+
+  'tour.progress': '{n} de {total}',
+  'tour.next': 'Siguiente',
+  'tour.back': 'Atrás',
+  'tour.done': 'Terminar',
+  'tour.close': 'Cerrar la visita',
+  'tour.welcome.title': 'Te damos la bienvenida a Papercell',
+  'tour.welcome.body':
+    'Papercell convierte un rango de una hoja de cálculo en un formulario en papel y luego lo lee desde una foto, en dos pasos: Preparar y Escanear.',
+  'tour.import.title': 'Trae un rango',
+  'tour.import.body':
+    'Copia un rango en Google Sheets, Excel, LibreOffice u ONLYOFFICE y pégalo aquí, o sube un archivo. Indica en qué celda empieza el rango, para que Papercell te diga luego dónde pegar los resultados.',
+  'tour.preview.title': 'Revisa la página',
+  'tour.preview.body':
+    'Así se imprime cada página. Las celdas con texto se imprimen tal cual, y las vacías de filas con texto se convierten en casillas para marcar.',
+  'tour.cell.title': 'Elige qué es cada celda',
+  'tour.cell.body':
+    'Haz clic o toca una celda sin texto para convertirla en casilla, número, letras, línea para escribir o en blanco. También puedes indicarlo en la hoja de cálculo con una etiqueta como [##], escrita en la celda o en su nota. Con una nota, la celda queda libre para los resultados. Tienes todas las etiquetas en Ayuda, en Preguntas frecuentes.',
+  'tour.settings.title': 'Ajusta la página',
+  'tour.settings.body':
+    'Elige el papel, la orientación y el tamaño, los colores de las celdas y las líneas de cuadrícula, y un título que se imprime en cada página.',
+  'tour.print.title': 'Imprime',
+  'tour.print.body': 'Imprime a escala 100 %. La hoja se guarda en este dispositivo, en Hojas recientes.',
+  'tour.scan.title': 'Rellénala y hazle fotos',
+  'tour.scan.body':
+    'Rellena las páginas a mano y haz una foto de cada una, o arrastra, pega o elige imágenes. Pon la página plana y asegúrate de que salen en la foto los cuatro cuadrados de las esquinas.',
+  'tour.sample.title': '¿No tienes una página a mano?',
+  'tour.sample.body': 'Prueba con una foto de ejemplo de una página rellenada para ver los pasos siguientes: revisar y pegar los resultados.',
+  'tour.review.title': 'Revisa',
+  'tour.review.body':
+    'Aquí aparece cada página leída. Papercell señala lo que no tiene claro: abre Revisar para comprobarlo. Toca una casilla para cambiarla, o un valor para corregirlo.',
+  'tour.results.title': 'Pega los resultados',
+  'tour.results.body': 'Copia los resultados y pégalos en la hoja de cálculo en la celda indicada, o descárgalos como archivo CSV.',
+  'tour.help.title': 'Aquí tienes ayuda',
+  'tour.help.body': 'Desde este botón puedes repetir esta visita o leer las preguntas frecuentes.',
 };

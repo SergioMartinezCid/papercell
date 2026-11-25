@@ -17,6 +17,8 @@ import { useI18n } from '../i18n';
 
 interface Props {
   page: PrintablePage;
+  /** Marks the page and one of its cells for the guided tour. */
+  tour?: boolean;
   kinds: CellKind[][];
   /** Spreadsheet position of the range, to name cells. */
   anchor: { row: number; col: number };
@@ -41,7 +43,7 @@ interface Target {
 }
 
 /** One printed page. Cells without text can be clicked to choose what they are. */
-export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chosen, automatic, onChoose }: Props) {
+export const PagePreview = memo(function PagePreview({ page, tour, kinds, anchor, chosen, automatic, onChoose }: Props) {
   const { t } = useI18n();
   const svg = useMemo(() => drawingToSvg(page.drawing, `v${page.layout.index}-`), [page]);
   const [target, setTarget] = useState<Target | null>(null);
@@ -51,6 +53,8 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
   const [count, setCount] = useState('');
   const { width, height } = page.drawing;
   const choosable = page.layout.cells.filter((c) => c.kind !== 'text');
+  /** The cell the guided tour points at: the first box or field. */
+  const tourCell = tour ? (choosable.find((c) => kinds[c.row]?.[c.col] !== 'blank') ?? choosable[0]) : undefined;
   const pct = (v: number, total: number) => `${(v / total) * 100}%`;
 
   const choose = (kind: KindOverride | null) => {
@@ -88,12 +92,13 @@ export const PagePreview = memo(function PagePreview({ page, kinds, anchor, chos
   );
 
   return (
-    <Paper shadow="sm" radius={0} pos="relative" style={{ aspectRatio: `${width} / ${height}`, overflow: 'hidden', background: '#fff' }}>
+    <Paper data-tour={tour ? 'preview' : undefined} shadow="sm" radius={0} pos="relative" style={{ aspectRatio: `${width} / ${height}`, overflow: 'hidden', background: '#fff' }}>
       <div className="page-svg" dangerouslySetInnerHTML={{ __html: svg }} />
       <svg viewBox={`0 0 ${width} ${height}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
         {choosable.map((c) => (
           <rect
             key={`${c.row},${c.col}`}
+            data-tour={c === tourCell ? 'cell' : undefined}
             className={kinds[c.row]?.[c.col] === 'blank' ? 'toggle-cell' : 'toggle-cell is-box'}
             x={c.rect.x}
             y={c.rect.y}

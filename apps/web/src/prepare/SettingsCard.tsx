@@ -10,7 +10,7 @@ interface Props {
 export function SettingsCard({ settings, onChange }: Props) {
   const { t } = useI18n();
   return (
-    <Card withBorder radius="md" padding="md">
+    <Card data-tour="settings" withBorder radius="md" padding="md">
       <Stack gap="sm">
         <Title order={2} size="h4">
           {t('prepare.settings.title')}

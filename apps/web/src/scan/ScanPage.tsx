@@ -197,7 +197,7 @@ export function ScanPage({ active, mobile }: Props) {
       <input ref={filesInput} type="file" accept="image/*" multiple hidden onChange={onInput} />
 
       {mobile ? (
-        <Stack gap="xs">
+        <Stack gap="xs" data-tour="scan-add">
           <Button size="lg" leftSection={<IconCamera />} onClick={() => pick(cameraInput)}>
             {t('scan.add.camera')}
           </Button>
@@ -210,6 +210,7 @@ export function ScanPage({ active, mobile }: Props) {
         </Stack>
       ) : (
         <Paper
+          data-tour="scan-add"
           withBorder
           radius="md"
           p="xl"
@@ -239,7 +240,7 @@ export function ScanPage({ active, mobile }: Props) {
           <Text size="sm" c="dimmed">
             {t('scan.empty')}
           </Text>
-          <Button variant="light" leftSection={<IconSparkles size={18} />} onClick={() => void trySample()} mt="sm">
+          <Button data-tour="sample" variant="light" leftSection={<IconSparkles size={18} />} onClick={() => void trySample()} mt="sm">
             {t('scan.sample')}
           </Button>
           <Text size="xs" c="dimmed" maw={420}>
@@ -353,7 +354,7 @@ export function ScanPage({ active, mobile }: Props) {
                     const marked = p.scan!.boxes.filter((b) => isMarked(p, b)).length;
                     const check = checksLeft(p);
                     return (
-                      <Paper key={p.id} withBorder radius="sm" p={6}>
+                      <Paper key={p.id} data-tour="scan-page" withBorder radius="sm" p={6}>
                         <Box style={{ cursor: 'pointer' }} onClick={() => setReviewId(p.id)}>
                           <Image src={p.previewUrl} alt={t('scan.page', { n: p.scan!.payload.pageIndex + 1 })} radius="xs" />
                         </Box>
