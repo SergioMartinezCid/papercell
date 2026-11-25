@@ -84,7 +84,7 @@ Scanning a photo:
 2. Read the QR page code.
 3. Straighten the page and even out its lighting (morphological closing, which also removes hard shadow edges). Boxes are read from the darkest colour channel, so a pen of any colour counts like black.
 4. Snap each box to its printed outline. This absorbs paper curl, and boxes that cannot be snapped borrow the shift of their neighbours.
-5. Measure the ink inside every box and split marked from empty per page. Values close to the threshold, and boxes that stand out from the empty ones without reaching it, are flagged for review rather than guessed.
+5. Measure the ink inside every box and split marked from empty per page. The empty boxes are the lowest group of values, and the closest group to it: the boxes are split in two (Otsu), then the lower part again and again, down to the last clear split. This way light marks are not taken for empty boxes on a page where most boxes are marked darker. A lowest group too dark to be empty boxes means none is empty. Values close to the threshold, and boxes that stand out from the empty ones without reaching it, are flagged for review rather than guessed.
 6. Read number fields:
    - Digit boxes are printed light grey, so the writing can be told from them.
    - Each field is found by its outlines. It is moved to where the outlines of all its boxes line up with thin lines on the page. A cell's gridline fits one side of a row of boxes, not all four.

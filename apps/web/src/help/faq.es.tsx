@@ -179,8 +179,8 @@ export const faqEs: FaqSection[] = [
         question: '¿Cómo marco una casilla?',
         answer: (
           <P>
-            Rellénala, o táchala casi entera, con un bolígrafo de cualquier color, y marca todas las casillas de la página igual. Una cruz fina o una
-            marca pequeña puede quedarse corta, sobre todo junto a casillas bien rellenas.
+            Rellénala, táchala o haz en ella un ✓ o una cruz bien visibles, con un bolígrafo de cualquier color. Puedes mezclar ✓, cruces y
+            casillas rellenas en la misma página. Una marca muy tenue o muy pequeña puede quedar señalada para que la compruebes.
           </P>
         ),
       },

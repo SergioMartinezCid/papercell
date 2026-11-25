@@ -30,12 +30,33 @@ describe('chooseThreshold', () => {
     expect(classify(0.12, t).marked).toBe(true);
   });
 
-  it('flags a light mark on a page where the other marks are dark', () => {
+  it('reads a light mark on a page where the other marks are dark, and flags it', () => {
     const empty = Array.from({ length: 40 }, (_, i) => 0.01 + (i % 5) * 0.005);
     const dark = Array.from({ length: 12 }, (_, i) => 0.6 + i * 0.02);
     const t = chooseThreshold([...empty, ...dark, 0.146]);
-    expect(classify(0.146, t)).toEqual({ marked: false, uncertain: true });
+    expect(classify(0.146, t)).toEqual({ marked: true, uncertain: true });
     for (const f of empty) expect(classify(f, t).uncertain).toBe(false);
+  });
+
+  // Splitting the whole page in two would put the light marks with the empty box.
+  it('finds the empty boxes when most boxes are marked, some much lighter', () => {
+    const marks = [0.336, 0.369, 0.463, 0.474, 0.608, 0.609, 0.672, 0.855, 0.861, 0.862, 0.863];
+    const t = chooseThreshold([0.008, ...marks]);
+    expect(classify(0.008, t)).toEqual({ marked: false, uncertain: false });
+    for (const f of marks) expect(classify(f, t)).toEqual({ marked: true, uncertain: false });
+  });
+
+  it('finds a single empty box among light marks spread out', () => {
+    const marks = [0.16, 0.17, 0.19, 0.2, 0.21, 0.23, 0.25, 0.27, 0.29, 0.31, 0.33, 0.36, 0.38];
+    const t = chooseThreshold([0.004, ...marks]);
+    expect(classify(0.004, t).marked).toBe(false);
+    for (const f of marks) expect(classify(f, t).marked).toBe(true);
+  });
+
+  it('reads every box as marked when none is empty, however light', () => {
+    const marks = [0.41, 0.46, 0.52, 0.55, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.9, 0.91];
+    const t = chooseThreshold(marks);
+    for (const f of marks) expect(classify(f, t)).toEqual({ marked: true, uncertain: false });
   });
 
   it('does not split a page of only empty boxes', () => {

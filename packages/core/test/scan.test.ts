@@ -69,6 +69,32 @@ describe('scanPage on synthetic photos', () => {
     expect(r.silentWrong).toBe(0);
   });
 
+  // Most boxes marked: the empty ones are a small group at the bottom, and the marks vary much more than they do.
+  const checklist = sampleTemplate({ rows: 30, options: 1 });
+
+  it.each([141, 142])('reads a checklist mostly filled in or ticked with no silent mistakes (seed %i)', (seed) => {
+    const r = runCase({ template: checklist, seed, difficulty: 'easy', density: 0.9, styles: ['fill', 'tick'] });
+    expect(r.error).toBeUndefined();
+    expect(r.boxes).toBe(30);
+    expect(r.silentWrong).toBe(0);
+    expect(r.uncertain).toBeLessThanOrEqual(2);
+  });
+
+  it('never silently misreads a hard photo of a checklist mostly filled in or ticked', () => {
+    const r = runCase({ template: checklist, seed: 144, difficulty: 'hard', density: 0.9, styles: ['fill', 'tick'] });
+    expect(r.error).toBeUndefined();
+    expect(r.silentWrong).toBe(0);
+  });
+
+  it.each([
+    [151, 'easy'],
+    [155, 'hard'],
+  ] as const)('reads a checklist with every box marked, some lightly, as all marked (seed %i, %s)', (seed, difficulty) => {
+    const r = runCase({ template: checklist, seed, difficulty, density: 1, styles: ['fill', 'scribble'] });
+    expect(r.error).toBeUndefined();
+    expect(r.silentWrong).toBe(0);
+  });
+
   it('returns the page code area when the code cannot be read', () => {
     const page = buildPrintable(template).pages[0];
     const area = qrSearchRect(page.layout.format);

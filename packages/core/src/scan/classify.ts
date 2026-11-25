@@ -14,8 +14,13 @@ export interface Threshold {
   separated: boolean;
 }
 
-/** Used when every box looks alike (all empty or all marked). */
-const FALLBACK: Threshold = { value: 0.3, margin: 0.08, doubtFrom: 0.3, separated: false };
+/**
+ * Used when every box looks alike (all empty or all marked) or no group looks like empty boxes. Empty boxes read
+ * below about 0.13 even in poor photos, and nearly all marks above 0.16.
+ */
+const FALLBACK: Threshold = { value: 0.15, margin: 0.04, doubtFrom: 0.15, separated: false };
+/** The empty boxes read at most this on average: a lower group any darker is light marks, not empty boxes. */
+const EMPTY_MAX = 0.2;
 /** Two groups this far apart are always told apart. */
 const CLEAR_GAP = 0.2;
 /**
@@ -34,10 +39,37 @@ const POSITION = 0.3;
 const LOWEST = 0.1;
 
 export function chooseThreshold(fills: number[]): Threshold {
-  const s = [...fills].sort((a, b) => a - b);
+  // The empty boxes are the lowest group. Split the boxes in two, then the lower part again and again: the deepest
+  // clear split is the one between the empty boxes and the lightest marks. On a page with most boxes marked, the
+  // first split often falls between light and dark marks instead. Splits that are not clear are looked through
+  // until a clear one is found, as on a page of light marks spread out, where the first split falls among them.
+  let group = [...fills].sort((a, b) => a - b);
+  let found: { group: number[]; split: Split } | null = null;
+  for (let split = otsu(group); split; split = otsu(group)) {
+    if (clear(group, split)) found = { group, split };
+    else if (found) break;
+    group = group.slice(0, split.k);
+  }
+  if (!found || found.split.m0 > EMPTY_MAX) return FALLBACK;
+  const { m0, m1, k } = found.split;
+  const spread = spreadOf(found.group.slice(0, k));
+  const value = clamp(m0 + POSITION * (m1 - m0), LOWEST, 0.5);
+  const doubtFrom = Math.max(LOWEST, m0 + MIN_CONTRAST * spread);
+  return { value, margin: Math.max(0.05, 0.4 * (value - m0)), doubtFrom, separated: true };
+}
+
+interface Split {
+  /** Size of the lower group. */
+  k: number;
+  /** Mean of the lower and the upper group. */
+  m0: number;
+  m1: number;
+}
+
+/** Otsu: the split of sorted values that best separates two groups. */
+function otsu(s: number[]): Split | null {
   const n = s.length;
-  if (n < 2) return FALLBACK;
-  // Otsu: the split that best separates two groups.
+  if (n < 2) return null;
   const prefix = [0];
   for (const v of s) prefix.push(prefix[prefix.length - 1] + v);
   let best = { between: -1, k: 0, m0: 0, m1: 0 };
@@ -47,12 +79,12 @@ export function chooseThreshold(fills: number[]): Threshold {
     const between = (k / n) * ((n - k) / n) * (m1 - m0) ** 2;
     if (between > best.between) best = { between, k, m0, m1 };
   }
-  const gap = best.m1 - best.m0;
-  const spread = spreadOf(s.slice(0, best.k));
-  if (gap < Math.min(CLEAR_GAP, Math.max(MIN_GAP, MIN_CONTRAST * spread))) return FALLBACK;
-  const value = clamp(best.m0 + POSITION * gap, LOWEST, 0.5);
-  const doubtFrom = Math.max(LOWEST, best.m0 + MIN_CONTRAST * spread);
-  return { value, margin: Math.max(0.05, 0.4 * (value - best.m0)), doubtFrom, separated: true };
+  return best;
+}
+
+/** Whether the two groups of a split are clearly apart: far, or close but each tight (see MIN_CONTRAST). */
+function clear(s: number[], split: Split): boolean {
+  return split.m1 - split.m0 >= Math.min(CLEAR_GAP, Math.max(MIN_GAP, MIN_CONTRAST * spreadOf(s.slice(0, split.k))));
 }
 
 /**

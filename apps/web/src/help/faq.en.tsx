@@ -173,8 +173,8 @@ export const faqEn: FaqSection[] = [
         question: 'How should I mark a box?',
         answer: (
           <P>
-            Fill it in, or scribble over most of it, with a pen of any colour, and mark every box of the page the same way. A thin cross or a
-            small tick may be too light to count, especially next to boxes filled in solidly.
+            Fill it in, scribble over it, or draw a clear tick or cross, with a pen of any colour. Ticks, crosses and filled-in boxes can be mixed
+            on the same page. A very faint or tiny mark may be flagged for you to check.
           </P>
         ),
       },
