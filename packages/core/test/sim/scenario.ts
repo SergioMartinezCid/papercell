@@ -49,6 +49,8 @@ export interface CaseOptions {
   difficulty: 'easy' | 'hard';
   /** Mark styles to draw, picked uniformly. */
   styles?: MarkStyle[];
+  /** Share of boxes marked, each independently; by default mostly one box per row. */
+  density?: number;
   /** Pen colour; by default black or blue. */
   ink?: Rgb;
   renderPxPerMm?: number;
@@ -70,6 +72,8 @@ export interface CaseResult {
   markedFills: number[];
   /** Fills of empty boxes in rows that have a background colour. */
   emptyStripedFills: number[];
+  /** Every box read: its fill, whether it was marked and what was drawn in it. */
+  readings: Array<{ fill: number; marked: boolean; drawn: MarkStyle | 'speck' | 'nothing' }>;
   /** Every box read wrongly, with what was drawn in it. */
   mistakes: Array<{ row: number; col: number; drawn: MarkStyle | 'speck' | 'nothing'; fill: number; threshold: number; uncertain: boolean }>;
   ms: number;
@@ -83,7 +87,8 @@ export function runCase(c: CaseOptions): CaseResult {
   const printable = buildPrintable(c.template);
   const page = printable.pages[0];
   const image = rasterize(page.drawing, p);
-  const truth = chooseMarks(page.layout.boxes.map((b) => ({ row: b.row, col: b.col })), rng);
+  const positions = page.layout.boxes.map((b) => ({ row: b.row, col: b.col }));
+  const truth = c.density === undefined ? chooseMarks(positions, rng) : new Set(positions.filter(() => rng() < c.density!).map((b) => `${b.row},${b.col}`));
 
   const styles = c.styles ?? DEFAULT_STYLES;
   // Picked even when an ink is given, so the same seed draws the same marks with any pen.
@@ -108,7 +113,7 @@ export function runCase(c: CaseOptions): CaseResult {
   const started = performance.now();
   const outcome = scanPage(photo);
   const ms = performance.now() - started;
-  const empty: CaseResult = { ok: false, boxes: 0, wrong: 0, silentWrong: 0, uncertain: 0, emptyFills: [], markedFills: [], emptyStripedFills: [], mistakes: [], ms };
+  const empty: CaseResult = { ok: false, boxes: 0, wrong: 0, silentWrong: 0, uncertain: 0, emptyFills: [], markedFills: [], emptyStripedFills: [], readings: [], mistakes: [], ms };
   if (!outcome.ok) return { ...empty, error: outcome.error };
 
   const striped = new Set(
@@ -124,6 +129,7 @@ export function runCase(c: CaseOptions): CaseResult {
       result.mistakes.push({ row: b.row, col: b.col, drawn: drawn.get(key) ?? 'nothing', fill: b.fill, threshold: outcome.scan.threshold.value, uncertain: b.uncertain });
     }
     if (b.uncertain) result.uncertain++;
+    result.readings.push({ fill: b.fill, marked: truthMarked, drawn: drawn.get(key) ?? 'nothing' });
     if (truthMarked) result.markedFills.push(b.fill);
     else {
       result.emptyFills.push(b.fill);

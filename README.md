@@ -155,6 +155,8 @@ pnpm typecheck
 pnpm build          # production build in apps/web/dist
 pnpm preview        # serve the production build
 pnpm bench:backgrounds [photos]   # do cell background colours affect reading?
+pnpm bench:marks [photos]         # are marked boxes told from empty ones, however they are marked?
+pnpm bench:marks --replay         # the same pages again after changing the rule, in seconds
 pnpm bench:numbers [photos]       # how well are handwritten numbers read?
 pnpm bench:text [photos]          # how well are letters and writing lines read?
 pnpm sample:photos [--seed n]     # remake the sample photos behind "Try a sample photo"

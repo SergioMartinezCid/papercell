@@ -13,6 +13,8 @@ export type MarkStyle =
   | 'cell'
   /** A cross through the box. */
   | 'cross'
+  /** A tick: a short stroke down and a long one up, sometimes past the box. */
+  | 'tick'
   /** Filled in with a light pencil. */
   | 'light'
   /** A quick zigzag with a fine pen, covering about half the box. */
@@ -45,6 +47,16 @@ export function drawMark(img: RgbImage, box: Rect, cell: Rect, style: MarkStyle,
       line(img, { x: box.x, y: box.y }, { x: box.x + box.w, y: box.y + box.h }, 0.6, ink, p);
       line(img, { x: box.x + box.w, y: box.y }, { x: box.x, y: box.y + box.h }, 0.6, ink, p);
       break;
+    case 'tick': {
+      const pen = uniform(rng, 0.45, 0.7);
+      const at = (fx: number, fy: number) => ({ x: box.x + fx * box.w, y: box.y + fy * box.h });
+      const start = at(uniform(rng, 0.1, 0.3), uniform(rng, 0.4, 0.6));
+      const bottom = at(uniform(rng, 0.35, 0.5), uniform(rng, 0.75, 0.95));
+      const end = at(uniform(rng, 0.8, 1.2), uniform(rng, -0.2, 0.15));
+      line(img, start, bottom, pen, ink, p);
+      line(img, bottom, end, pen, ink, p);
+      break;
+    }
     case 'squiggle': {
       const w = box.w * uniform(rng, 0.3, 0.6);
       const h = box.h * uniform(rng, 0.55, 0.85);

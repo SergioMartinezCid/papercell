@@ -11,6 +11,7 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "bench:backgrounds": "pnpm --filter @papercell/core bench:backgrounds",
+    "bench:marks": "pnpm --filter @papercell/core bench:marks",
     "bench:numbers": "pnpm --filter @papercell/core bench:numbers",
     "bench:text": "pnpm --filter @papercell/core bench:text",
     "sample:photos": "pnpm --filter @papercell/web sample:photos"

@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json",
     "bench:backgrounds": "tsx bench/backgrounds.ts",
+    "bench:marks": "tsx bench/marks.ts",
     "bench:numbers": "tsx bench/numbers.ts",
     "bench:text": "tsx bench/text.ts"
   },
