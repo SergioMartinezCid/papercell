@@ -290,6 +290,17 @@ export const faqEn: FaqSection[] = [
         ),
       },
       {
+        id: 'share',
+        question: 'How do I get the results from my phone to a computer?',
+        answer: (
+          <P>
+            Use Share, under the results, to send them to a notes app or an email, with the cell to paste them at as the title or subject. As
+            text, they paste straight into the spreadsheet from the note. As a CSV file, they also survive email apps, which may turn the tabs
+            between cells into spaces. Share appears where the device offers it, as phones do.
+          </P>
+        ),
+      },
+      {
         id: 'values',
         question: 'What do marked and empty boxes become?',
         answer: (

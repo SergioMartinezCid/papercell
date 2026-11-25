@@ -148,6 +148,10 @@ export const es: Messages = {
   'output.copied': 'Copiado. Pégalo en la celda {cell}.',
   'output.copyFailed': 'No se pudo copiar. Usa Descargar.',
   'output.download': 'Descargar CSV',
+  'output.share': 'Compartir',
+  'output.shareText': 'Como texto, para pegar',
+  'output.shareFile': 'Como archivo CSV',
+  'output.shareFailed': 'No se pudo compartir. Usa Copiar o Descargar.',
   'output.unchecked': 'Quedan {count} casillas, números o textos "por revisar".',
   'output.unknown':
     '{count} celdas del bloque no son casillas y este dispositivo no tiene la hoja original, así que se pegarán vacías. Mejor usa "Solo casillas" con un bloque formado solo por casillas, o escanea en el dispositivo desde el que imprimiste.',

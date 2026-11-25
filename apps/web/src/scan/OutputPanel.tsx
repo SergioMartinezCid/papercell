@@ -1,10 +1,10 @@
-import { Alert, Button, Group, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Button, Group, Menu, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconCopy, IconDownload } from '@tabler/icons-react';
+import { IconClipboardText, IconCopy, IconDownload, IconFileSpreadsheet, IconShare } from '@tabler/icons-react';
 import { buildOutput, cellAddress, parseRangeAddress, rangeAddress, toCsv, toTsv, type CellRange, type OutputOptions, type Template } from '@papercell/core';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useI18n } from '../i18n';
-import { copyText, downloadText } from '../lib/files';
+import { canShare, canShareFiles, copyText, csvFile, downloadText, share } from '../lib/files';
 import { RangeGrid } from './RangeGrid';
 import { checksLeft, fieldsOf, fieldValue, isMarked, type ScanItem } from './types';
 
@@ -76,6 +76,24 @@ export function OutputPanel({ pages, template, fileName, options, onOptions, chi
     const ok = await copyText(toTsv(output.values));
     notifications.show(ok ? { color: 'green', message: t('output.copied', { cell }) } : { color: 'red', message: t('output.copyFailed') });
   };
+
+  // Sharing sends the results elsewhere, e.g. from a phone to a computer through a notes app or an email. The
+  // subject (or note title) says where to paste them. Tabs may not survive in an email, so a CSV file is offered too.
+  const shareable = useMemo(canShare, []);
+  const filesShareable = useMemo(canShareFiles, []);
+  const shareAs = async (as: 'text' | 'file') => {
+    const where = t('output.pasteAt', { cell });
+    const title = `${template?.settings.title || 'Papercell'}: ${where}`;
+    const ok = await share(
+      as === 'text' ? { title, text: toTsv(output.values) } : { title, text: where, files: [csvFile(`${fileName}.csv`, toCsv(output.values))] },
+    );
+    if (!ok) notifications.show({ color: 'red', message: t('output.shareFailed') });
+  };
+  const shareButton = (props: { onClick?: () => void }) => (
+    <Button variant="default" leftSection={<IconShare size={16} />} {...props}>
+      {t('output.share')}
+    </Button>
+  );
 
   return (
     <div className="results-layout">
@@ -150,10 +168,26 @@ export function OutputPanel({ pages, template, fileName, options, onOptions, chi
           {t('output.selectHint')}
         </Text>
       </Stack>
-      <Group data-tour="results" gap="sm" grow className="results-actions">
+      <Group data-tour="results" gap="sm" className="results-actions">
         <Button leftSection={<IconCopy size={16} />} onClick={() => void copy()}>
           {t('output.copy')}
         </Button>
+        {shareable &&
+          (filesShareable ? (
+            <Menu position="top">
+              <Menu.Target>{shareButton({})}</Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item leftSection={<IconClipboardText size={16} />} onClick={() => void shareAs('text')}>
+                  {t('output.shareText')}
+                </Menu.Item>
+                <Menu.Item leftSection={<IconFileSpreadsheet size={16} />} onClick={() => void shareAs('file')}>
+                  {t('output.shareFile')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          ) : (
+            shareButton({ onClick: () => void shareAs('text') })
+          ))}
         <Button variant="default" leftSection={<IconDownload size={16} />} onClick={() => downloadText(`${fileName}.csv`, toCsv(output.values))}>
           {t('output.download')}
         </Button>

@@ -146,6 +146,10 @@ export const en = {
   'output.copied': 'Copied. Paste it at cell {cell}.',
   'output.copyFailed': 'Could not copy. Use Download instead.',
   'output.download': 'Download CSV',
+  'output.share': 'Share',
+  'output.shareText': 'As text, to paste',
+  'output.shareFile': 'As a CSV file',
+  'output.shareFailed': 'Could not share. Use Copy or Download instead.',
   'output.unchecked': '{count} boxes, numbers or texts are still marked "to check".',
   'output.unknown':
     '{count} cells in the block are not boxes and this device does not have the original sheet, so they will be pasted empty. Prefer "Boxes only" with a block made only of boxes, or scan on the device you printed from.',

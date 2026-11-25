@@ -298,6 +298,17 @@ export const faqEs: FaqSection[] = [
         ),
       },
       {
+        id: 'share',
+        question: '¿Cómo paso los resultados del móvil al ordenador?',
+        answer: (
+          <P>
+            Usa Compartir, bajo los resultados, para enviarlos a una app de notas o a un correo, con la celda donde pegarlos como título o asunto.
+            Como texto, se pegan directamente en la hoja de cálculo desde la nota. Como archivo CSV, aguantan también el correo, que puede
+            convertir en espacios los tabuladores entre celdas. Compartir aparece donde el dispositivo lo permite, como en los móviles.
+          </P>
+        ),
+      },
+      {
         id: 'values',
         question: '¿En qué se convierten las casillas marcadas y vacías?',
         answer: (

@@ -178,6 +178,11 @@
   }
 }
 
+/* Copy, Share and Download share the width, and wrap to a second row on a narrow phone. */
+.results-actions > * {
+  flex: 1 1 9rem;
+}
+
 /* Scanned range: highlighted cells are the ones that get copied. */
 .range-grid {
   user-select: none;

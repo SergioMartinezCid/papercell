@@ -33,3 +33,32 @@ export function downloadText(name: string, text: string, type = 'text/csv'): voi
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+/** Whether the system share sheet is available (phones and some computers, on HTTPS). */
+export function canShare(): boolean {
+  return typeof navigator.share === 'function' && window.isSecureContext;
+}
+
+/** Whether files can be shared too, not only text. */
+export function canShareFiles(): boolean {
+  try {
+    return canShare() && navigator.canShare?.({ files: [csvFile('results.csv', '')] }) === true;
+  } catch {
+    return false;
+  }
+}
+
+/** A CSV file, with a byte order mark so that Excel reads it as UTF-8. */
+export function csvFile(name: string, text: string): File {
+  return new File(['﻿', text], name, { type: 'text/csv' });
+}
+
+/** Opens the system share sheet: false if sharing failed, true if it was done or cancelled. */
+export async function share(data: ShareData): Promise<boolean> {
+  try {
+    await navigator.share(data);
+    return true;
+  } catch (e) {
+    return e instanceof DOMException && e.name === 'AbortError';
+  }
+}
