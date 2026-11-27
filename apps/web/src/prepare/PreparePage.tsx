@@ -7,6 +7,8 @@ import {
   cellKey,
   planCells,
   DEFAULT_SETTINGS,
+  fieldToken,
+  otherSeparatorField,
   parseCellAddress,
   templateFingerprint,
   type KindOverride,
@@ -90,6 +92,12 @@ export function PreparePage({ active, mobile, touch, demo }: Props) {
       load(pasted.sheet);
       if (pasted.warning) notifications.show({ color: 'orange', autoClose: false, message: t('prepare.import.hiddenLines') });
       else if (pasted.withoutNotes) notifications.show({ autoClose: 12000, message: t('prepare.import.excelNotes') });
+      const separator = pasted.decimalSeparator;
+      const other = separator && otherSeparatorField(pasted.sheet, separator);
+      if (separator && other) {
+        const message = t('prepare.import.decimals', { separator, token: fieldToken(other), fixed: fieldToken({ ...other, separator }) });
+        notifications.show({ color: 'orange', autoClose: false, message });
+      }
     },
     [load, t],
   );

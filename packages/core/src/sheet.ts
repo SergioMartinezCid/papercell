@@ -121,6 +121,20 @@ export function cellToken(cell: SheetCell): CellToken | null {
   return cell.note ? findToken(cell.note) : null;
 }
 
+/**
+ * The first number field in the sheet whose decimals follow another separator than `separator`, the one the
+ * spreadsheet uses: what is read there would not paste back into it as a number.
+ */
+export function otherSeparatorField(sheet: Sheet, separator: '.' | ','): NumberField | null {
+  for (const row of sheet.cells) {
+    for (const cell of row) {
+      const token = cellToken(cell);
+      if (token?.kind === 'number' && token.field.decimals > 0 && token.field.separator !== separator) return token.field;
+    }
+  }
+  return null;
+}
+
 export interface CellPlan {
   kinds: CellKind[][];
   /** The field of every `number` cell, keyed by `cellKey(row, col)`. */

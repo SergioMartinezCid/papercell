@@ -87,6 +87,15 @@ export function copiedFromExcel(doc: Document): boolean {
   );
 }
 
+/** The decimal separator Excel shows, which it says in its HTML; null when the HTML does not say. */
+export function excelDecimalSeparator(doc: Document): '.' | ',' | null {
+  for (const style of Array.from(doc.querySelectorAll('style'))) {
+    const match = /mso-displayed-decimal-separator\s*:\s*"\\?([.,])"/.exec(style.textContent ?? '');
+    if (match) return match[1] as '.' | ',';
+  }
+  return null;
+}
+
 /** Elements that are not part of the cell's text: LibreOffice writes a cell's note as `<comment>`. */
 const NOT_TEXT = new Set(['STYLE', 'SCRIPT', 'COMMENT']);
 

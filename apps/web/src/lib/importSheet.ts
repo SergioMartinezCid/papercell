@@ -1,6 +1,7 @@
 /** Getting a sheet from the clipboard or a file. */
 import {
   copiedFromExcel,
+  excelDecimalSeparator,
   GOOGLE_SHEETS_CLIPBOARD_TYPE,
   notesFromGoogleSheets,
   parseDelimited,
@@ -17,6 +18,8 @@ export interface ClipboardImport {
   warning?: 'hidden-lines';
   /** Copied from Excel, which leaves the notes out, and with them any token written in one. */
   withoutNotes?: boolean;
+  /** The decimal separator of the spreadsheet copied from, when it says (Excel does). */
+  decimalSeparator?: '.' | ',';
 }
 
 /** Prefers the HTML flavour (keeps sizes, merges, formatting and notes) over plain text. */
@@ -31,10 +34,13 @@ export function sheetFromClipboard(data: DataTransfer | null): ClipboardImport |
   if (sheet && notes) sheet = withNotes(sheet, notes);
   if (sheet) {
     const withoutNotes = doc ? copiedFromExcel(doc) : false;
+    const decimalSeparator = (doc && excelDecimalSeparator(doc)) ?? undefined;
     // Spreadsheets copy plain text as tab-separated values, which still has hidden rows and columns.
-    if (!text.trim()) return { sheet, withoutNotes };
+    if (!text.trim()) return { sheet, withoutNotes, decimalSeparator };
     const restored = restoreHiddenLines(sheet, parseDelimited(text, '\t'));
-    return restored ? { sheet: restored, withoutNotes } : { sheet: sheetFromDelimited(text, '\t'), warning: 'hidden-lines' };
+    return restored
+      ? { sheet: restored, withoutNotes, decimalSeparator }
+      : { sheet: sheetFromDelimited(text, '\t'), warning: 'hidden-lines', decimalSeparator };
   }
   return text.trim() ? { sheet: sheetFromDelimited(text) } : null;
 }

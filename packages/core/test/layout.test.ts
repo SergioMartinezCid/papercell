@@ -4,7 +4,7 @@ import { contentRect, layoutSheet } from '../src/layout';
 import { markerMatrix } from '../src/markers';
 import { MARKER_DICTIONARY, paperFormat } from '../src/spec';
 import { AR } from '../src/vendor/js-aruco2/aruco.js';
-import { cellAddress, classifyCells, normalizeSheet, parseCellAddress, parseRangeAddress, planCells, rangeAddress } from '../src/sheet';
+import { cellAddress, classifyCells, normalizeSheet, otherSeparatorField, parseCellAddress, parseRangeAddress, planCells, rangeAddress } from '../src/sheet';
 import { numberTemplate, sampleTemplate, textTemplate } from './sim/scenario';
 
 const text = (rows: string[][]) => normalizeSheet({ cells: rows.map((r) => r.map((t) => ({ text: t }))) });
@@ -63,6 +63,12 @@ describe('classifyCells', () => {
 });
 
 describe('number fields', () => {
+  it('finds a field whose decimals follow another separator than the spreadsheet', () => {
+    const sheet = normalizeSheet({ cells: [[{ text: '[##]' }, { text: '[0,0]' }], [{ text: '', note: 'mark: [##.#]' }, { text: '[#.#]' }]] });
+    expect(otherSeparatorField(sheet, ',')).toEqual({ digits: 2, decimals: 1, separator: '.' });
+    expect(otherSeparatorField(sheet, '.')).toEqual({ digits: 1, decimals: 1, separator: ',' });
+    expect(otherSeparatorField(text([['[##]', '[#,##]']]), ',')).toBeNull();
+  });
 
   it('prints one box per digit inside the cell, with a slot for the separator', () => {
     const layout = layoutSheet(numberTemplate({ rows: 3, tokens: ['[##,#]'] }), 29);

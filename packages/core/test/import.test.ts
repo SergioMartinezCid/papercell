@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { detectDelimiter, parseDelimited, sheetFromDelimited } from '../src/import/delimited';
 import { notesFromGoogleSheets } from '../src/import/googleSheets';
 import { restoreHiddenLines } from '../src/import/hidden';
-import { copiedFromExcel, sheetFromHtmlTable } from '../src/import/html';
+import { copiedFromExcel, excelDecimalSeparator, sheetFromHtmlTable } from '../src/import/html';
 import { notesFromXlsx } from '../src/import/xlsxNotes';
 
 describe('delimited text', () => {
@@ -94,7 +94,9 @@ describe('HTML clipboard tables', () => {
       <tr height=0 style='display:none'><td>gone</td><td></td></tr>
       <tr height=21 style='height:16.0pt'><td class=xl66>red</td><td class="xl68">it</td></tr>
       <!--EndFragment--></table></body></html>`;
-    const sheet = sheetFromHtmlTable(new DOMParser().parseFromString(excel, 'text/html'))!;
+    const doc = new DOMParser().parseFromString(excel, 'text/html');
+    expect(excelDecimalSeparator(doc)).toBe('.');
+    const sheet = sheetFromHtmlTable(doc)!;
     expect(sheet.cells.map((r) => r.map((c) => c.text))).toEqual([
       ['Name', '[ ]'],
       ['gone', ''],
@@ -142,7 +144,10 @@ describe('HTML clipboard tables', () => {
     expect(sheet.cells.flat().some((c) => c.note)).toBe(false);
     expect(sheet.colWidths).toHaveLength(3);
     expect(copiedFromExcel(doc)).toBe(true);
-    expect(copiedFromExcel(new DOMParser().parseFromString('<meta name="generator" content="LibreOffice"><table></table>', 'text/html'))).toBe(false);
+    expect(excelDecimalSeparator(doc)).toBe(',');
+    const libreOffice = new DOMParser().parseFromString('<meta name="generator" content="LibreOffice"><table></table>', 'text/html');
+    expect(copiedFromExcel(libreOffice)).toBe(false);
+    expect(excelDecimalSeparator(libreOffice)).toBeNull();
   });
 
   it('returns null without a table', () => {

@@ -30,6 +30,8 @@ export const es: Messages = {
   'prepare.import.hiddenLines':
     'El rango tiene filas o columnas ocultas que no se pudieron situar, así que solo se importó su texto (sin formato ni notas) y las filas y columnas ocultas se imprimirán. Para que sigan ocultas, muéstralas, copia de nuevo y vuelve a ocultarlas después.',
   'prepare.import.excelNotes': 'Excel no copia las notas, así que una etiqueta escrita en una nota no se lee. Escríbela en la celda, o sube el archivo .xlsx.',
+  'prepare.import.decimals':
+    'Tu Excel escribe los decimales con «{separator}», pero etiquetas como {token} usan el otro separador, así que los números leídos no se pegarían en él como números. Escríbelas como {fixed}.',
   'prepare.recent.title': 'Hojas recientes',
   'prepare.recent.open': 'Abrir',
   'prepare.recent.delete': 'Borrar',
