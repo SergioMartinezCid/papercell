@@ -284,8 +284,8 @@ export const faqEn: FaqSection[] = [
         question: 'Where do I paste the results?',
         answer: (
           <P>
-            At the cell named under Results, in the same spreadsheet. It comes from "Range starts at", set when preparing. Copy puts the results on
-            the clipboard ready to paste; Download CSV saves them as a file.
+            At the cell named under Results, in the same spreadsheet. It comes from "Range starts at", set when preparing (an uploaded{' '}
+            <Code>.xlsx</Code> file sets it by itself). Copy puts the results on the clipboard ready to paste; Download CSV saves them as a file.
           </P>
         ),
       },

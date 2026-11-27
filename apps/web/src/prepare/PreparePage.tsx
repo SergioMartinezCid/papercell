@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHelp } from '../help/HelpContext';
 import { sampleTemplate } from '../help/samples';
 import { useI18n } from '../i18n';
-import { sheetFromClipboard, sheetsFromFile } from '../lib/importSheet';
+import { sheetFromClipboard, sheetsFromFile, type FileImport } from '../lib/importSheet';
 import { deleteTemplate, listTemplates, saveTemplate, type StoredTemplate } from '../lib/templates';
 import { ImportCard } from './ImportCard';
 import { PagePreview } from './PagePreview';
@@ -44,7 +44,7 @@ export function PreparePage({ active, mobile, touch, demo }: Props) {
   const [template, setTemplate] = useState<Template | null>(null);
   const [anchorText, setAnchorText] = useState('A1');
   const [recent, setRecent] = useState<StoredTemplate[]>([]);
-  const [worksheets, setWorksheets] = useState<Array<{ name: string; sheet: Sheet }>>([]);
+  const [worksheets, setWorksheets] = useState<FileImport['sheets']>([]);
   const [worksheet, setWorksheet] = useState<string | null>(null);
 
   // The latest template is kept on the device: printing and scanning often happen on different days.
@@ -60,17 +60,19 @@ export function PreparePage({ active, mobile, touch, demo }: Props) {
   /** The sheet on screen: the one being prepared, or the sample one while the tour shows it. */
   const shown = template ?? (demo ? sampleTemplate(lang) : null);
 
+  /** `origin`: where the sheet starts in the spreadsheet, when the file says; otherwise the cell typed in stays. */
   const load = useCallback(
-    (sheet: Sheet) => {
+    (sheet: Sheet, origin?: { row: number; col: number }) => {
       if (sheet.cells.length === 0) {
         notifications.show({ color: 'orange', message: t('prepare.import.nothing') });
         return;
       }
+      if (origin) setAnchorText(cellAddress(origin.row, origin.col));
       setTemplate((current) => ({
         sheet,
         overrides: {},
         settings: { ...DEFAULT_SETTINGS, ...current?.settings },
-        anchor: anchor ?? { row: 0, col: 0 },
+        anchor: origin ?? anchor ?? { row: 0, col: 0 },
       }));
       notifications.show({ message: t('prepare.import.loaded', { rows: sheet.rowHeights.length, cols: sheet.colWidths.length }) });
     },
@@ -111,7 +113,7 @@ export function PreparePage({ active, mobile, touch, demo }: Props) {
       if (sheets.length === 0) throw new Error('empty');
       setWorksheets(sheets);
       setWorksheet(sheets[0].name);
-      load(sheets[0].sheet);
+      load(sheets[0].sheet, sheets[0].origin);
     } catch {
       notifications.show({ color: 'red', message: t('prepare.import.failed') });
     }
@@ -185,7 +187,7 @@ export function PreparePage({ active, mobile, touch, demo }: Props) {
       onWorksheet={(name) => {
         setWorksheet(name);
         const found = worksheets.find((w) => w.name === name);
-        if (found) load(found.sheet);
+        if (found) load(found.sheet, found.origin);
       }}
     />
   );

@@ -4,6 +4,7 @@ import { detectDelimiter, parseDelimited, sheetFromDelimited } from '../src/impo
 import { notesFromGoogleSheets } from '../src/import/googleSheets';
 import { restoreHiddenLines } from '../src/import/hidden';
 import { copiedFromExcel, sheetFromHtmlTable } from '../src/import/html';
+import { notesFromXlsx } from '../src/import/xlsxNotes';
 
 describe('delimited text', () => {
   it('parses quoted fields with tabs, quotes and line breaks', () => {
@@ -254,5 +255,83 @@ describe('ONLYOFFICE notes', () => {
     ]);
     expect(sheet.colWidths[0]).toBe(80);
     expect(sheet.hiddenCols).toEqual([1]);
+  });
+});
+
+describe('.xlsx notes', () => {
+  /** A zip of these files, deflated except the ones named in `stored`. The checksums are left at 0: nothing here checks them. */
+  async function zip(files: Record<string, string>, stored: string[] = []): Promise<ArrayBuffer> {
+    const encoder = new TextEncoder();
+    const parts: Uint8Array<ArrayBuffer>[] = [];
+    const directory: Uint8Array<ArrayBuffer>[] = [];
+    let offset = 0;
+    for (const [name, text] of Object.entries(files)) {
+      const raw = encoder.encode(text);
+      const method = stored.includes(name) ? 0 : 8;
+      const body = method ? new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()) : raw;
+      const path = encoder.encode(name);
+      const local = new Uint8Array(30 + path.length + body.length);
+      const l = new DataView(local.buffer);
+      l.setUint32(0, 0x04034b50, true);
+      l.setUint16(8, method, true);
+      l.setUint32(18, body.length, true);
+      l.setUint32(22, raw.length, true);
+      l.setUint16(26, path.length, true);
+      local.set(path, 30);
+      local.set(body, 30 + path.length);
+      const entry = new Uint8Array(46 + path.length);
+      const e = new DataView(entry.buffer);
+      e.setUint32(0, 0x02014b50, true);
+      e.setUint16(10, method, true);
+      e.setUint32(20, body.length, true);
+      e.setUint32(24, raw.length, true);
+      e.setUint16(28, path.length, true);
+      e.setUint32(42, offset, true);
+      entry.set(path, 46);
+      parts.push(local);
+      directory.push(entry);
+      offset += local.length;
+    }
+    const end = new Uint8Array(22);
+    const d = new DataView(end.buffer);
+    d.setUint32(0, 0x06054b50, true);
+    d.setUint16(8, directory.length, true);
+    d.setUint16(10, directory.length, true);
+    d.setUint32(12, directory.reduce((s, x) => s + x.length, 0), true);
+    d.setUint32(16, offset, true);
+    return new Blob([...parts, ...directory, end]).arrayBuffer();
+  }
+
+  const MAIN = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+  const RELS = 'xmlns="http://schemas.openxmlformats.org/package/2006/relationships"';
+  const TYPE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+  it('reads the notes of every sheet, also of the cells saved with nothing but a note', async () => {
+    // As Excel saves them: G3 has a note and is not in the sheet's cells; the note starts with its author.
+    const file = await zip(
+      {
+        'xl/workbook.xml': `<workbook ${MAIN} xmlns:r="${TYPE}"><sheets><sheet name="Sheet A" sheetId="1" r:id="rId1"/><sheet name="B" sheetId="2" r:id="rId2"/><sheet name="C &amp; D" sheetId="3" r:id="rId3"/></sheets></workbook>`,
+        'xl/_rels/workbook.xml.rels': `<Relationships ${RELS}><Relationship Id="rId2" Type="${TYPE}/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId1" Type="${TYPE}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId3" Type="${TYPE}/worksheet" Target="/xl/worksheets/sheet3.xml"/></Relationships>`,
+        'xl/worksheets/sheet1.xml': `<worksheet ${MAIN}><sheetData><row r="4"><c r="G4" t="s"><v>0</v></c></row></sheetData></worksheet>`,
+        'xl/worksheets/_rels/sheet1.xml.rels': `<Relationships ${RELS}><Relationship Id="rId2" Type="${TYPE}/comments" Target="../comments1.xml"/><Relationship Id="rId1" Type="${TYPE}/vmlDrawing" Target="../drawings/vmlDrawing1.vml"/></Relationships>`,
+        'xl/comments1.xml': `<comments ${MAIN}><authors><author>Author</author></authors><commentList>
+          <comment ref="G3" authorId="0"><text><r><rPr><b/></rPr><t>Author:</t></r><r><t xml:space="preserve">
+[##]</t></r></text></comment>
+          <comment ref="b2" authorId="0"><text><t>see [-] &amp; more</t></text></comment>
+          <comment ref="C1" authorId="0"><text><t> </t></text></comment></commentList></comments>`,
+        'xl/worksheets/sheet3.xml': `<worksheet ${MAIN}><sheetData/></worksheet>`,
+        'xl/worksheets/_rels/sheet3.xml.rels': `<Relationships ${RELS}><Relationship Id="rId1" Type="${TYPE}/comments" Target="/xl/notes/third.xml"/></Relationships>`,
+        'xl/notes/third.xml': `<comments ${MAIN}><commentList><comment ref="A1"><text><t>[ ]</t></text></comment></commentList></comments>`,
+      },
+      ['xl/workbook.xml'],
+    );
+    const notes = await notesFromXlsx(file);
+    expect([...notes.keys()]).toEqual(['Sheet A', 'C & D']);
+    expect(Object.fromEntries(notes.get('Sheet A')!)).toEqual({ G3: 'Author:\n[##]', B2: 'see [-] & more' });
+    expect(Object.fromEntries(notes.get('C & D')!)).toEqual({ A1: '[ ]' });
+  });
+
+  it('rejects a file that is not a zip', async () => {
+    await expect(notesFromXlsx(new TextEncoder().encode('name,score\n').buffer)).rejects.toThrow();
   });
 });

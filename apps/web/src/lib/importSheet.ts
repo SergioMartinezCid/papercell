@@ -40,7 +40,8 @@ export function sheetFromClipboard(data: DataTransfer | null): ClipboardImport |
 }
 
 export interface FileImport {
-  sheets: Array<{ name: string; sheet: Sheet }>;
+  /** `origin`: where the sheet starts in the spreadsheet, when the file says (0-based). */
+  sheets: Array<{ name: string; sheet: Sheet; origin?: { row: number; col: number } }>;
 }
 
 export async function sheetsFromFile(file: File): Promise<FileImport> {

@@ -291,8 +291,9 @@ export const faqEs: FaqSection[] = [
         question: '¿Dónde pego los resultados?',
         answer: (
           <P>
-            En la celda que se indica en Resultados, en la misma hoja de cálculo. Sale de «El rango empieza en», que se pone al preparar. Copiar
-            deja los resultados en el portapapeles listos para pegar; Descargar CSV los guarda en un archivo.
+            En la celda que se indica en Resultados, en la misma hoja de cálculo. Sale de «El rango empieza en», que se pone al preparar (al
+            subir un archivo <Code>.xlsx</Code> se pone sola). Copiar deja los resultados en el portapapeles listos para pegar; Descargar CSV los
+            guarda en un archivo.
           </P>
         ),
       },

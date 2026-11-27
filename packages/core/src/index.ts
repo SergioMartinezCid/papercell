@@ -8,6 +8,7 @@ export * from './drawing';
 export * from './results';
 export * from './import/delimited';
 export * from './import/html';
+export * from './import/xlsxNotes';
 export * from './import/hidden';
 export * from './import/googleSheets';
 export * from './scan/image';

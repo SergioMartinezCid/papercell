@@ -8,7 +8,7 @@ Papercell suits any list you keep in a spreadsheet but fill in away from the com
 
 ## How to use it
 
-1. **Copy a range.** Select it in Google Sheets, Excel, LibreOffice or ONLYOFFICE, copy it and paste it into Papercell. You can also upload an `.xlsx`, `.csv` or `.tsv` file. Papercell keeps the text and, where the source has them, column widths, merged cells and formatting. It asks which cell the range starts at, so it can tell you later where to paste the results.
+1. **Copy a range.** Select it in Google Sheets, Excel, LibreOffice or ONLYOFFICE, copy it and paste it into Papercell. You can also upload an `.xlsx`, `.csv` or `.tsv` file. Papercell keeps the text and, where the source has them, column widths, merged cells and formatting. It asks which cell the range starts at (an `.xlsx` file tells it), so it can tell you later where to paste the results.
 2. **Choose what each cell is.** Cells with text are printed as they are. Empty cells in rows with text become boxes to mark. For a number, capital letters or free writing, write a short [token](#cell-kinds) in the cell or in its note, or click the cell in the preview.
 3. **Print** at 100% scale. Pages are A4 or Letter, portrait or landscape. A long range is split into pages, and the header rows can repeat on each one.
 4. **Fill it in** by hand, with a pen of any colour. Mark boxes by filling them in. Write numbers one digit per box and capital letters one per box. Write anything on writing lines.
