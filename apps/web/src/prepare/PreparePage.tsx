@@ -29,6 +29,8 @@ import { RecentCard } from './RecentCard';
 import { SettingsCard } from './SettingsCard';
 
 const SMALL_BOX_MM = 3.5;
+/** Files that can be imported, as the upload button offers them. */
+const IMPORTABLE = /\.(xlsx|csv|tsv|txt)$/i;
 /** Digit boxes lower than this are hard to write in. */
 const SMALL_DIGIT_MM = 5;
 
@@ -115,17 +117,55 @@ export function PreparePage({ active, mobile, touch, demo }: Props) {
     return () => document.removeEventListener('paste', handler);
   }, [active, onPaste]);
 
-  const onFile = async (file: File) => {
-    try {
-      const { sheets } = await sheetsFromFile(file);
-      if (sheets.length === 0) throw new Error('empty');
-      setWorksheets(sheets);
-      setWorksheet(sheets[0].name);
-      load(sheets[0].sheet, sheets[0].origin);
-    } catch {
-      notifications.show({ color: 'red', message: t('prepare.import.failed') });
-    }
-  };
+  const onFile = useCallback(
+    async (file: File) => {
+      try {
+        const { sheets } = await sheetsFromFile(file);
+        if (sheets.length === 0) throw new Error('empty');
+        setWorksheets(sheets);
+        setWorksheet(sheets[0].name);
+        load(sheets[0].sheet, sheets[0].origin);
+      } catch {
+        notifications.show({ color: 'red', message: t('prepare.import.failed') });
+      }
+    },
+    [load, t],
+  );
+
+  // A file dropped anywhere on this screen is imported, and the paste target lights up while one is dragged over.
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    let timer: number | undefined;
+    const withFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') ?? false;
+    const over = (e: DragEvent) => {
+      if (!withFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      setDragging(true);
+      // Dragging over repeats while the file is over the window: when it stops, the file left or the drag was cancelled.
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setDragging(false), 200);
+    };
+    const drop = (e: DragEvent) => {
+      if (!withFiles(e)) return;
+      e.preventDefault();
+      window.clearTimeout(timer);
+      setDragging(false);
+      const file = e.dataTransfer?.files[0];
+      if (!file) return;
+      if (IMPORTABLE.test(file.name)) void onFile(file);
+      else notifications.show({ color: 'orange', message: t('prepare.import.dropType') });
+    };
+    window.addEventListener('dragover', over);
+    window.addEventListener('drop', drop);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('dragover', over);
+      window.removeEventListener('drop', drop);
+      setDragging(false);
+    };
+  }, [active, onFile, t]);
 
   const onAnchorChange = (value: string) => {
     setAnchorText(value);
@@ -185,6 +225,7 @@ export function PreparePage({ active, mobile, touch, demo }: Props) {
   const importCard = (
     <ImportCard
       touch={touch}
+      dragging={dragging}
       anchor={anchorText}
       anchorValid={anchor !== null}
       onAnchorChange={onAnchorChange}

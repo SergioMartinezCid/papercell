@@ -27,6 +27,8 @@ export const en = {
   'prepare.import.loaded': 'Imported {rows} rows × {cols} columns',
   'prepare.import.hiddenLines':
     'The range has hidden rows or columns that could not be placed, so only its text was imported (no formatting or notes), and hidden rows and columns will be printed. To keep them hidden, show them, copy again and hide them afterwards.',
+  'prepare.import.dropHere': 'Drop the file to import it',
+  'prepare.import.dropType': 'Only .xlsx, .csv and .tsv files can be imported.',
   'prepare.import.excelNotes': 'Excel does not copy notes, so a token written in a note is not read. Write it in the cell, or upload the .xlsx file.',
   'prepare.import.decimals':
     'Your Excel writes decimals with "{separator}", but tokens such as {token} use the other separator, so the numbers read would not paste back into it as numbers. Write them like {fixed}.',
@@ -168,7 +170,7 @@ export const en = {
     'Papercell turns a spreadsheet range into a paper form and reads it back from a photo, in two steps: Prepare and Scan.',
   'tour.import.title': 'Bring in a range',
   'tour.import.body':
-    'Copy a range in Google Sheets, Excel, LibreOffice or ONLYOFFICE and paste it here, or upload a file. Set which cell the range starts at, so that Papercell can tell you later where to paste the results.',
+    'Copy a range in Google Sheets, Excel, LibreOffice or ONLYOFFICE and paste it here, or upload or drop a file. Set which cell the range starts at, so that Papercell can tell you later where to paste the results.',
   'tour.preview.title': 'Check the page',
   'tour.preview.body':
     'This is how each page prints. Cells with text are printed as they are, and empty cells in rows with text become boxes to mark.',

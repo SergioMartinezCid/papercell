@@ -29,6 +29,8 @@ export const es: Messages = {
   'prepare.import.loaded': 'Importadas {rows} filas × {cols} columnas',
   'prepare.import.hiddenLines':
     'El rango tiene filas o columnas ocultas que no se pudieron situar, así que solo se importó su texto (sin formato ni notas) y las filas y columnas ocultas se imprimirán. Para que sigan ocultas, muéstralas, copia de nuevo y vuelve a ocultarlas después.',
+  'prepare.import.dropHere': 'Suelta el archivo para importarlo',
+  'prepare.import.dropType': 'Solo se pueden importar archivos .xlsx, .csv y .tsv.',
   'prepare.import.excelNotes': 'Excel no copia las notas, así que una etiqueta escrita en una nota no se lee. Escríbela en la celda, o sube el archivo .xlsx.',
   'prepare.import.decimals':
     'Tu Excel escribe los decimales con «{separator}», pero etiquetas como {token} usan el otro separador, así que los números leídos no se pegarían en él como números. Escríbelas como {fixed}.',
@@ -170,7 +172,7 @@ export const es: Messages = {
     'Papercell convierte un rango de una hoja de cálculo en un formulario en papel y luego lo lee desde una foto, en dos pasos: Preparar y Escanear.',
   'tour.import.title': 'Trae un rango',
   'tour.import.body':
-    'Copia un rango en Google Sheets, Excel, LibreOffice u ONLYOFFICE y pégalo aquí, o sube un archivo. Indica en qué celda empieza el rango, para que Papercell te diga luego dónde pegar los resultados.',
+    'Copia un rango en Google Sheets, Excel, LibreOffice u ONLYOFFICE y pégalo aquí, o sube o arrastra un archivo. Indica en qué celda empieza el rango, para que Papercell te diga luego dónde pegar los resultados.',
   'tour.preview.title': 'Revisa la página',
   'tour.preview.body':
     'Así se imprime cada página. Las celdas con texto se imprimen tal cual, y las vacías de filas con texto se convierten en casillas para marcar.',

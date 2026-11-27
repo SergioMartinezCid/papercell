@@ -1,10 +1,12 @@
 import { Box, Button, Card, FileButton, Select, Stack, Text, TextInput, Title } from '@mantine/core';
-import { IconClipboard, IconUpload } from '@tabler/icons-react';
+import { IconClipboard, IconFileImport, IconUpload } from '@tabler/icons-react';
 import type { Sheet } from '@papercell/core';
 import { useI18n } from '../i18n';
 
 interface Props {
   touch: boolean;
+  /** A file is being dragged over the screen. */
+  dragging: boolean;
   anchor: string;
   anchorValid: boolean;
   onAnchorChange: (value: string) => void;
@@ -17,7 +19,7 @@ interface Props {
 
 export function ImportCard(p: Props) {
   const { t } = useI18n();
-  const label = p.touch ? t('prepare.import.pasteTargetTouch') : t('prepare.import.pasteTarget');
+  const label = p.dragging ? t('prepare.import.dropHere') : p.touch ? t('prepare.import.pasteTargetTouch') : t('prepare.import.pasteTarget');
   return (
     <Card data-tour="import" withBorder radius="md" padding="md">
       <Stack gap="sm">
@@ -25,7 +27,7 @@ export function ImportCard(p: Props) {
           {t('prepare.import.title')}
         </Title>
         {/* A real (empty) text field, so that touch screens offer Paste on long press; the label is drawn over it. */}
-        <Box className="paste-target">
+        <Box className={p.dragging ? 'paste-target is-dragging' : 'paste-target'}>
           <textarea
             aria-label={label}
             value=""
@@ -36,7 +38,7 @@ export function ImportCard(p: Props) {
             }}
           />
           <Stack className="paste-target-label" align="center" gap={4} aria-hidden>
-            <IconClipboard size={28} stroke={1.5} />
+            {p.dragging ? <IconFileImport size={28} stroke={1.5} /> : <IconClipboard size={28} stroke={1.5} />}
             <Text size="sm" ta="center">
               {label}
             </Text>

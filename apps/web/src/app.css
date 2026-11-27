@@ -113,6 +113,16 @@
   color: var(--mantine-primary-color-filled);
 }
 
+/* A file dragged over the screen: it is imported wherever it is dropped. */
+.paste-target.is-dragging textarea {
+  border-color: var(--mantine-primary-color-filled);
+  background: var(--mantine-primary-color-light);
+}
+
+.paste-target.is-dragging .paste-target-label {
+  color: var(--mantine-primary-color-filled);
+}
+
 .drop-zone {
   border-style: dashed;
   border-width: 2px;
