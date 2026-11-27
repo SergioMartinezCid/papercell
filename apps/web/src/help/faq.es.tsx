@@ -118,8 +118,7 @@ export const faqEs: FaqSection[] = [
             <Items>
               <List.Item>Google Sheets, LibreOffice y ONLYOFFICE copian las notas junto con las celdas.</List.Item>
               <List.Item>
-                Excel parece no copiar las notas: escribe las etiquetas en las celdas, o sube el archivo <Code>.xlsx</Code>, cuyas notas sí se
-                leen.
+                Excel no copia las notas: escribe las etiquetas en las celdas, o sube el archivo <Code>.xlsx</Code>, cuyas notas sí se leen.
               </List.Item>
               <List.Item>
                 Los archivos <Code>.csv</Code> y <Code>.tsv</Code> no tienen notas.

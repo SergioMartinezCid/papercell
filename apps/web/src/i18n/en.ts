@@ -27,6 +27,7 @@ export const en = {
   'prepare.import.loaded': 'Imported {rows} rows × {cols} columns',
   'prepare.import.hiddenLines':
     'The range has hidden rows or columns that could not be placed, so only its text was imported (no formatting or notes), and hidden rows and columns will be printed. To keep them hidden, show them, copy again and hide them afterwards.',
+  'prepare.import.excelNotes': 'Excel does not copy notes, so a token written in a note is not read. Write it in the cell, or upload the .xlsx file.',
   'prepare.recent.title': 'Recent sheets',
   'prepare.recent.open': 'Open',
   'prepare.recent.delete': 'Delete',

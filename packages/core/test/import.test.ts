@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { detectDelimiter, parseDelimited, sheetFromDelimited } from '../src/import/delimited';
 import { notesFromGoogleSheets } from '../src/import/googleSheets';
 import { restoreHiddenLines } from '../src/import/hidden';
-import { sheetFromHtmlTable } from '../src/import/html';
+import { copiedFromExcel, sheetFromHtmlTable } from '../src/import/html';
 
 describe('delimited text', () => {
   it('parses quoted fields with tabs, quotes and line breaks', () => {
@@ -104,6 +104,44 @@ describe('HTML clipboard tables', () => {
     expect(sheet.cells[0][1].style).toEqual({ background: '#ed7d31', fontSize: 11 });
     expect(sheet.cells[2][0].style).toEqual({ color: '#ed7d31', fontSize: 11 });
     expect(sheet.cells[2][1].style).toEqual({ italic: true, fontSize: 11 });
+  });
+
+  it('reads a range as Excel copies it, which has no notes', () => {
+    // From a copy in Excel; the third cell of the first row had the note [##], which is nowhere in it.
+    const excel = `<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head>
+      <meta http-equiv=Content-Type content="text/html; charset=utf-8"><meta name=ProgId content=Excel.Sheet>
+      <meta name=Generator content="Microsoft Excel 15">
+      <style><!--table {mso-displayed-decimal-separator:"\\,"; mso-displayed-thousand-separator:"\\.";}
+      .font5 {color:black; font-size:9.0pt; font-weight:400; font-family:Tahoma;}
+      .font6 {color:black; font-size:9.0pt; font-weight:700; font-family:Tahoma;}
+      td {padding:0px; color:black; font-size:11.0pt; font-weight:400; font-style:normal; border:none; white-space:nowrap;}
+      --></style></head><body link="#0563C1" vlink="#954F72">
+      <table border=0 cellpadding=0 cellspacing=0 width=249 style='border-collapse: collapse;width:186pt'>
+      <!--StartFragment-->
+       <col width=83 span=3 style='width:62pt'>
+       <tr height=19 style='height:14.4pt'>
+        <td height=19 width=83 style='height:14.4pt;width:62pt'>[-]</td>
+        <td width=83 style='width:62pt'>[ ]</td>
+        <td width=83 style='width:62pt'></td>
+       </tr>
+       <tr height=19 style='height:14.4pt'>
+        <td height=19 style='height:14.4pt'></td>
+        <td></td>
+        <td>[00.0]</td>
+       </tr>
+      <!--EndFragment-->
+      </table></body></html>`;
+    const doc = new DOMParser().parseFromString(excel, 'text/html');
+    const sheet = sheetFromHtmlTable(doc)!;
+    expect(sheet.cells.map((r) => r.map((c) => c.text))).toEqual([
+      ['[-]', '[ ]', ''],
+      ['', '', '[00.0]'],
+    ]);
+    expect(sheet.cells.flat().some((c) => c.note)).toBe(false);
+    expect(sheet.colWidths).toHaveLength(3);
+    expect(copiedFromExcel(doc)).toBe(true);
+    expect(copiedFromExcel(new DOMParser().parseFromString('<meta name="generator" content="LibreOffice"><table></table>', 'text/html'))).toBe(false);
   });
 
   it('returns null without a table', () => {

@@ -114,7 +114,7 @@ export const faqEn: FaqSection[] = [
             <Items>
               <List.Item>Google Sheets, LibreOffice and ONLYOFFICE copy notes along with the cells.</List.Item>
               <List.Item>
-                Excel does not seem to copy notes: write tokens in the cells, or upload the <Code>.xlsx</Code> file, whose notes are read.
+                Excel does not copy notes: write tokens in the cells, or upload the <Code>.xlsx</Code> file, whose notes are read.
               </List.Item>
               <List.Item>
                 <Code>.csv</Code> and <Code>.tsv</Code> files have no notes.

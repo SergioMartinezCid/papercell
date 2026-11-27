@@ -80,6 +80,13 @@ export function sheetFromHtmlTable(root: ParentNode): Sheet | null {
   return normalizeSheet({ cells: dense, colWidths, rowHeights, merges, hiddenRows, hiddenCols });
 }
 
+/** Whether the HTML was copied from Excel, which leaves the cells' notes out of it. */
+export function copiedFromExcel(doc: Document): boolean {
+  return Array.from(doc.querySelectorAll('meta')).some(
+    (m) => m.getAttribute('name')?.toLowerCase() === 'progid' && /^excel\./i.test(m.getAttribute('content') ?? ''),
+  );
+}
+
 /** Elements that are not part of the cell's text: LibreOffice writes a cell's note as `<comment>`. */
 const NOT_TEXT = new Set(['STYLE', 'SCRIPT', 'COMMENT']);
 

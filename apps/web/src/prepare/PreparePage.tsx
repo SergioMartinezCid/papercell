@@ -87,6 +87,7 @@ export function PreparePage({ active, mobile, touch, demo }: Props) {
       setWorksheets([]);
       load(pasted.sheet);
       if (pasted.warning) notifications.show({ color: 'orange', autoClose: false, message: t('prepare.import.hiddenLines') });
+      else if (pasted.withoutNotes) notifications.show({ autoClose: 12000, message: t('prepare.import.excelNotes') });
     },
     [load, t],
   );
